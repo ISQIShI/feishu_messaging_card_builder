@@ -1,0 +1,18 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Test / local temp payloads
+/tests/tmp_payload*.json
+
+# Local generated docs or scratch
+*.log
+
+# Excluded reference and example assets
+/examples/
+/reference/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
