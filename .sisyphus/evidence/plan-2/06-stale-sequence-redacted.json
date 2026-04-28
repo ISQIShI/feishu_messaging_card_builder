@@ -1,0 +1,12 @@
+{
+  "request_sequence": 2,
+  "response": {
+    "ok": false,
+    "identity": "bot",
+    "error": {
+      "type": "api_error",
+      "code": 300317,
+      "message": "API error: [300317] ErrMsg: sequence number compare failed; "
+    }
+  }
+}

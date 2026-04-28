@@ -1,0 +1,20 @@
+=== Dry Run ===
+{
+  "api": [
+    {
+      "method": "POST",
+      "url": "/open-apis/im/v1/messages",
+      "params": {
+        "receive_id_type": "open_id"
+      },
+      "body": {
+        "content": "{\"type\":\"card\",\"data\":{\"card_id\":\"<redacted-card-id>\"}}",
+        "msg_type": "interactive",
+        "receive_id": "<redacted-open-id>"
+      }
+    }
+  ],
+  "appId": "cli_a97a5787cb385bd6",
+  "as": "bot",
+  "userOpenId": "<redacted-open-id>"
+}

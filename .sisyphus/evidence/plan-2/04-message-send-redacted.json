@@ -1,0 +1,23 @@
+{
+  "code": 0,
+  "data": {
+    "body": {
+      "content": "{\"title\":\"Plan 2 live validation\",\"elements\":[[{\"tag\":\"img\",\"image_key\":\"img_v3_02ad_e19fca1f-912a-450e-95de-3c229091b53g\"},{\"tag\":\"text\",\"text\":\"请升级至最新版本客户端，以查看内容\"},{\"tag\":\"text\",\"text\":\"\"}]]}"
+    },
+    "chat_id": "<redacted-chat-id>",
+    "create_time": "1777399933331",
+    "deleted": false,
+    "message_id": "<redacted-message-id>",
+    "msg_type": "interactive",
+    "sender": {
+      "id": "<redacted-app-id>",
+      "id_type": "app_id",
+      "sender_type": "app",
+      "tenant_key": "<redacted-tenant-key>"
+    },
+    "update_time": "1777399933331",
+    "updated": false,
+    "root_id": "<redacted>"
+  },
+  "msg": "success"
+}

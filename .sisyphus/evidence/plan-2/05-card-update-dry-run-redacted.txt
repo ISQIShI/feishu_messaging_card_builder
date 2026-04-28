@@ -1,0 +1,20 @@
+=== Dry Run ===
+{
+  "api": [
+    {
+      "method": "PUT",
+      "url": "/open-apis/cardkit/v1/cards/<redacted-card-id>",
+      "body": {
+        "card": {
+          "data": "{\"schema\":\"2.0\",\"config\":{\"update_multi\":true},\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"Plan 2 live validation updated\"}},\"body\":{\"elements\":[{\"tag\":\"markdown\",\"element_id\":\"e_plan2_body\",\"content\":\"Plan 2 live validation update succeeded.\"}]}}",
+          "type": "card_json"
+        },
+        "sequence": 2,
+        "uuid": "plan-2-live-update-001"
+      }
+    }
+  ],
+  "appId": "cli_a97a5787cb385bd6",
+  "as": "bot",
+  "userOpenId": "ou_2e72b082bde81c162a1b6b83a614e336"
+}

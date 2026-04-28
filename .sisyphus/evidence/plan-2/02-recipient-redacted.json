@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "data": {
+    "user": {
+      "open_id": "<redacted>",
+      "union_id": "<redacted>",
+      "name": "<redacted>",
+      "tenant_key": "<redacted>"
+    }
+  }
+}
