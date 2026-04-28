@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+src/feishu_messaging_card_builder/__init__.py
+src/feishu_messaging_card_builder/cli.py
+src/feishu_messaging_card_builder.egg-info/PKG-INFO
+src/feishu_messaging_card_builder.egg-info/SOURCES.txt
+src/feishu_messaging_card_builder.egg-info/dependency_links.txt
+src/feishu_messaging_card_builder.egg-info/requires.txt
+src/feishu_messaging_card_builder.egg-info/top_level.txt
+tests/test_smoke.py
