@@ -14,4 +14,7 @@ __pycache__/
 .vscode/
 .idea/
 
-.sisyphus*.egg-info/
+.sisyphus/
+*.egg-info/
+*.pyi
+py.typed
