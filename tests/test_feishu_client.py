@@ -25,6 +25,14 @@ def _stringify(card_json: JSONDict) -> str:
     return json.dumps(card_json, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
+def _send_content(card_id: str) -> str:
+    return json.dumps(
+        {"type": "card", "data": {"card_id": card_id}},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
 def test_mock_transport_records_create_send_update() -> None:
     transport = MockFeishuTransport()
     client = FeishuCardClient(transport)
@@ -47,11 +55,12 @@ def test_mock_transport_records_create_send_update() -> None:
         },
         {
             "method": "POST",
-            "path": "legacy_template_send",
+            "path": "/open-apis/im/v1/messages",
+            "params": {"receive_id_type": "open_id"},
             "body": {
-                "recipient": "open_id:alice",
-                "type": "template",
-                "data": {"template_id": card_id},
+                "receive_id": "open_id:alice",
+                "msg_type": "interactive",
+                "content": _send_content(card_id),
             },
             "response": {"message_id": message_id},
         },
@@ -59,8 +68,10 @@ def test_mock_transport_records_create_send_update() -> None:
             "method": "PUT",
             "path": f"/open-apis/cardkit/v1/cards/{card_id}",
             "body": {
-                "type": "card_json",
-                "data": _stringify(updated_card_json),
+                "card": {
+                    "type": "card_json",
+                    "data": _stringify(updated_card_json),
+                },
                 "sequence": 7,
                 "uuid": "update-7",
             },
@@ -98,7 +109,7 @@ def test_raw_card_json_send_not_exposed() -> None:
     )
 
 
-def test_send_request_uses_legacy_template_send() -> None:
+def test_send_request_uses_official_im_message_endpoint() -> None:
     transport = MockFeishuTransport()
     client = FeishuCardClient(transport)
 
@@ -106,11 +117,12 @@ def test_send_request_uses_legacy_template_send() -> None:
 
     assert transport.calls[0] == {
         "method": "POST",
-        "path": "legacy_template_send",
+        "path": "/open-apis/im/v1/messages",
+        "params": {"receive_id_type": "open_id"},
         "body": {
-            "recipient": "open_id:bob",
-            "type": "template",
-            "data": {"template_id": "card-123"},
+            "receive_id": "open_id:bob",
+            "msg_type": "interactive",
+            "content": _send_content("card-123"),
         },
         "response": transport.calls[0]["response"],
     }

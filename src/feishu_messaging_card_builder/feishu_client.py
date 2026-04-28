@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from typing import Final, Protocol, TypeAlias, TypedDict, final
+from typing import Final, NotRequired, Protocol, TypeAlias, TypedDict, final
 
 JSONScalar: TypeAlias = str | int | float | bool | None
 JSONValue: TypeAlias = JSONScalar | dict[str, "JSONValue"] | list["JSONValue"]
@@ -14,6 +14,7 @@ class TransportRequest(TypedDict):
     method: str
     path: str
     body: JSONDict
+    params: NotRequired[dict[str, str] | None]
 
 
 class RecordedCall(TypedDict):
@@ -21,12 +22,14 @@ class RecordedCall(TypedDict):
     path: str
     body: JSONDict
     response: JSONDict
+    params: NotRequired[dict[str, str] | None]
 
 
 LIVE_REQUIRED_ENV: Final[list[str]] = ["FEISHU_APP_ID", "FEISHU_APP_SECRET"]
 
 CARDKIT_CREATE_PATH: Final[str] = "/open-apis/cardkit/v1/cards"
-LEGACY_TEMPLATE_SEND_PATH: Final[str] = "legacy_template_send"
+IM_MESSAGES_PATH: Final[str] = "/open-apis/im/v1/messages"
+_LEGACY_TEMPLATE_SEND_PATH: Final[str] = "legacy_template_send"
 
 
 @final
@@ -103,24 +106,49 @@ def build_update_card_request(
         "method": "PUT",
         "path": f"{CARDKIT_CREATE_PATH}/{card_id}",
         "body": {
-            "type": "card_json",
-            "data": _stringify_card_json(card_json),
+            "card": {
+                "type": "card_json",
+                "data": _stringify_card_json(card_json),
+            },
             "sequence": sequence,
             "uuid": uuid,
         },
     }
 
 
-def build_legacy_template_send_request(card_id: str, recipient: str) -> TransportRequest:
-    """Build the legacy template send request for a card entity.
+def build_card_entity_send_request(
+    card_id: str,
+    recipient: str,
+    receive_id_type: str = "open_id",
+) -> TransportRequest:
+    """Build the official IM send request for a card entity."""
 
-    This `legacy_template_send` payload is a Phase 1 payload-proof item —
-    validate against live/API Explorer.
+    return {
+        "method": "POST",
+        "path": IM_MESSAGES_PATH,
+        "params": {"receive_id_type": receive_id_type},
+        "body": {
+            "receive_id": recipient,
+            "msg_type": "interactive",
+            "content": json.dumps(
+                {"type": "card", "data": {"card_id": card_id}},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ),
+        },
+    }
+
+
+def _build_legacy_template_send_request(card_id: str, recipient: str) -> TransportRequest:  # pyright: ignore[reportUnusedFunction]
+    """Deprecated Phase 1 payload-proof helper retained for historical reference.
+
+    Keep private: Plan 2 live validation confirmed the official IM messages
+    endpoint contract should be used for send operations.
     """
 
     return {
         "method": "POST",
-        "path": LEGACY_TEMPLATE_SEND_PATH,
+        "path": _LEGACY_TEMPLATE_SEND_PATH,
         "body": {
             "recipient": recipient,
             "type": "template",
@@ -159,7 +187,7 @@ class MockFeishuTransport:
         return self._finalize("create", request, response)
 
     def record_send(self, card_id: str, recipient: str) -> JSONDict:
-        request = build_legacy_template_send_request(card_id, recipient)
+        request = build_card_entity_send_request(card_id, recipient)
         suffix = _stable_suffix(card_id, recipient)
         response = {"message_id": f"mock-msg-{suffix}"}
         return self._finalize("send", request, response)
@@ -189,14 +217,16 @@ class MockFeishuTransport:
         return dict(response)
 
     def _record(self, request: TransportRequest, response: Mapping[str, JSONValue]) -> None:
-        self.calls.append(
-            {
-                "method": request["method"],
-                "path": request["path"],
-                "body": request["body"],
-                "response": dict(response),
-            }
-        )
+        recorded_call: RecordedCall = {
+            "method": request["method"],
+            "path": request["path"],
+            "body": request["body"],
+            "response": dict(response),
+        }
+        if "params" in request:
+            recorded_call["params"] = request["params"]
+
+        self.calls.append(recorded_call)
 
 
 @final
@@ -222,8 +252,7 @@ class FeishuCardClient:
     def send_card(self, card_id: str, recipient: str) -> str:
         """Send an existing card entity and return its Feishu message id.
 
-        Payload mode: `legacy_template_send`.
-        Phase 1 payload-proof item — validate against live/API Explorer.
+        Payload mode: official IM interactive message with card entity content.
         """
 
         response = self._transport.record_send(card_id, recipient)

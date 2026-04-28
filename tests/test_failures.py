@@ -1,3 +1,4 @@
+# pyright: reportMissingTypeStubs=false
 from __future__ import annotations
 
 import copy
@@ -15,7 +16,7 @@ from feishu_messaging_card_builder.feishu_client import (
     FeishuCardClient,
     JSONDict,
     MockFeishuTransport,
-    build_legacy_template_send_request,
+    build_card_entity_send_request,
 )
 from feishu_messaging_card_builder.renderer import OversizeCardError, UnsupportedContentError
 from feishu_messaging_card_builder.state import BridgeStateError, BridgeStateManager, Status
@@ -47,12 +48,14 @@ def configure_fail_first_send(transport: MockFeishuTransport) -> None:
         nonlocal did_fail_send
         if not did_fail_send:
             did_fail_send = True
-            request = build_legacy_template_send_request(card_id, recipient)
+            request = build_card_entity_send_request(card_id, recipient)
             error_response = cast(JSONDict, {"error": "mock send failure", "status_code": 503})
+            params = request.get("params")
             transport.calls.append(
                 {
                     "method": request["method"],
                     "path": request["path"],
+                    "params": params,
                     "body": request["body"],
                     "response": error_response,
                 }
@@ -139,7 +142,8 @@ def test_create_success_send_failure_preserves_card_id(tmp_path: Path) -> None:
     retry_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:retry")
     retried_record = state.get_record(retry_result.bridge_message_id)
     create_calls = [call for call in transport.calls if call["path"] == "/open-apis/cardkit/v1/cards"]
-    send_calls = [call for call in transport.calls if call["path"] == "legacy_template_send"]
+    send_calls = [call for call in transport.calls if call["path"] == "/open-apis/im/v1/messages"]
+
 
     assert exc_info.value.card_id is not None
     assert failed_record["status"] == Status.SEND_FAILED.value

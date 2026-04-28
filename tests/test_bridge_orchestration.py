@@ -1,3 +1,4 @@
+# pyright: reportMissingTypeStubs=false
 from __future__ import annotations
 
 import json
@@ -16,7 +17,7 @@ from feishu_messaging_card_builder.feishu_client import (
     FeishuCardClient,
     JSONDict,
     MockFeishuTransport,
-    build_legacy_template_send_request,
+    build_card_entity_send_request,
 )
 from feishu_messaging_card_builder.state import BridgeStateError, BridgeStateManager, Status
 
@@ -60,12 +61,14 @@ def configure_fail_first_send(transport: MockFeishuTransport) -> None:
         nonlocal did_fail_send
         if not did_fail_send:
             did_fail_send = True
-            request = build_legacy_template_send_request(card_id, recipient)
+            request = build_card_entity_send_request(card_id, recipient)
             error_response: JSONDict = {"error": "mock send failure", "status_code": 503}
+            params = request.get("params")
             transport.calls.append(
                 {
                     "method": request["method"],
                     "path": request["path"],
+                    "params": params,
                     "body": request["body"],
                     "response": error_response,
                 }
@@ -131,8 +134,9 @@ def test_happy_path_creates_exactly_one_card_and_sends_once() -> None:
         assert len(transport.calls) == 2
         assert [call["path"] for call in transport.calls] == [
             "/open-apis/cardkit/v1/cards",
-            "legacy_template_send",
+            "/open-apis/im/v1/messages",
         ]
+
     finally:
         temp_dir.cleanup()
 
@@ -152,7 +156,10 @@ def test_update_card_happy_path() -> None:
         assert len(update_result.mock_calls) == 1
         assert transport.calls[-1]["method"] == "PUT"
         assert transport.calls[-1]["body"]["sequence"] == 2
-        assert "> Updated by Phase 1 prototype" in str(transport.calls[-1]["body"]["data"])
+        card_payload = transport.calls[-1]["body"]["card"]
+        assert isinstance(card_payload, dict)
+        assert "> Updated by Phase 1 prototype" in str(card_payload["data"])
+
         assert record is not None
         assert record["status"] == Status.UPDATED.value
         assert record["sequence"] == 2
@@ -194,7 +201,8 @@ def test_create_success_send_failure_reuses_card_on_retry() -> None:
         retry_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:retry")
         retried_record = state.get_record(retry_result.bridge_message_id)
         create_calls = [call for call in transport.calls if call["path"] == "/open-apis/cardkit/v1/cards"]
-        send_calls = [call for call in transport.calls if call["path"] == "legacy_template_send"]
+        send_calls = [call for call in transport.calls if call["path"] == "/open-apis/im/v1/messages"]
+
 
         assert exc_info.value.card_id is not None
         assert failed_record["status"] == Status.SEND_FAILED.value
