@@ -5,7 +5,7 @@ import json
 import os
 import sys
 from collections.abc import Sequence
-from typing import Callable, Protocol, cast
+from typing import Protocol, cast
 from pathlib import Path
 
 from .bridge import BridgeOrchestrationError, BridgeOrchestrator
@@ -62,7 +62,7 @@ def _build_stack(db_path: str) -> tuple[BridgeStateManager, MockFeishuTransport,
 def _write_json(path: str | Path, payload: object) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _ = target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _prime_update_cache(orchestrator: BridgeOrchestrator, record: BridgeRecord) -> None:
@@ -82,6 +82,9 @@ def _process_fixture_command(args: argparse.Namespace) -> int:
     typed_args = cast(CLIArgs, cast(object, args))
     if not _ensure_live_guard(typed_args.live_feishu):
         return 1
+    if typed_args.live_feishu:
+        print("Live Feishu transport is not yet implemented", file=sys.stderr)
+        return 1
 
     _state, _transport, _client, orchestrator = _build_stack(typed_args.db)
     result = orchestrator.process_fixture(typed_args.fixture_path, typed_args.recipient)
@@ -92,15 +95,19 @@ def _process_fixture_command(args: argparse.Namespace) -> int:
         "sequence": result.sequence,
         "status": result.status,
         "mock_calls": result.mock_calls,
-        "live": typed_args.live_feishu,
+        "recovery_instruction": result.recovery_instruction,
+        "live": False,
     }
     _write_json(typed_args.evidence, evidence)
-    return 0
+    return 1 if result.status == "reconciliation_required" else 0
 
 
 def _update_card_command(args: argparse.Namespace) -> int:
     typed_args = cast(CLIArgs, cast(object, args))
     if not _ensure_live_guard(typed_args.live_feishu):
+        return 1
+    if typed_args.live_feishu:
+        print("Live Feishu transport is not yet implemented", file=sys.stderr)
         return 1
 
     state, _transport, _client, orchestrator = _build_stack(typed_args.db)
@@ -118,7 +125,7 @@ def _update_card_command(args: argparse.Namespace) -> int:
         "new_sequence": result.new_sequence,
         "status": result.status,
         "mock_calls": result.mock_calls,
-        "live": typed_args.live_feishu,
+        "live": False,
     }
     _write_json(typed_args.evidence, evidence)
     return 0
@@ -191,7 +198,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = cast(CLIArgs, cast(object, parser.parse_args(argv)))
 
     try:
-        return int(cast(CommandFunc, args.func)(args))
+        return int(args.func(args))
     except BridgeOrchestrationError as exc:
         print(str(exc), file=sys.stderr)
         return 1

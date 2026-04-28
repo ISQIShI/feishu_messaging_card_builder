@@ -157,7 +157,7 @@ class BridgeOrchestrator:
                 mock_calls=self._mock_calls_since(call_count_before),
             ) from exc
 
-        self._parsed_cache[bridge_message_id] = updated_parsed
+        self._parsed_cache[bridge_message_id] = parsed
         return UpdateResult(
             bridge_message_id=bridge_message_id,
             previous_sequence=previous_sequence,
@@ -271,8 +271,14 @@ class BridgeOrchestrator:
                     sequence=sequence,
                     failure_reason=recovery_instruction,
                 )
-            except BridgeStateError:
-                pass
+            except BridgeStateError as exc:
+                raise BridgeOrchestrationError(
+                    recovery_instruction,
+                    bridge_message_id=bridge_message_id,
+                    card_id=card_id,
+                    status=Status.RECONCILIATION_REQUIRED.value,
+                    mock_calls=self._mock_calls_since(call_count_before),
+                ) from exc
 
             return ProcessResult(
                 bridge_message_id=bridge_message_id,
@@ -355,13 +361,17 @@ class BridgeOrchestrator:
 
     @staticmethod
     def _updated_parsed_reply(parsed: ParsedFinalReply) -> ParsedFinalReply:
+        content_markdown = parsed.content_markdown
+        while content_markdown.endswith(UPDATE_MARKER):
+            content_markdown = content_markdown.removesuffix(UPDATE_MARKER)
+
         return parse_final_reply(
             {
                 "source_platform": parsed.source_platform,
                 "session_key": parsed.session_key,
                 "hermes_message_id": parsed.hermes_message_id,
                 "final_reply_index": parsed.final_reply_index,
-                "content_markdown": f"{parsed.content_markdown}{UPDATE_MARKER}",
+                "content_markdown": f"{content_markdown}{UPDATE_MARKER}",
                 "created_at": parsed.created_at,
                 "attachments": list(parsed.attachments),
                 "tool_payloads": list(parsed.tool_payloads),

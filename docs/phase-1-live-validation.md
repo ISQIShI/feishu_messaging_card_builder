@@ -1,5 +1,8 @@
 # Phase 1 Live Validation Guide
 
+> [!IMPORTANT]
+> **Live Feishu transport is not yet implemented.** Running commands with `--live-feishu` will produce an error message. The commands below show the intended future usage. Mock transport (`--mock-feishu`) is the only working mode for Phase 1.
+
 This document provides instructions for performing optional live validation of the Feishu Messaging Card Builder against a real Feishu tenant.
 
 ## Overview
@@ -38,7 +41,7 @@ When running live commands, you must provide a valid recipient ID (e.g., `open_i
 
 ## Exact Live Commands
 
-Use the `--live-feishu` flag to bypass the mock transport. It is recommended to use a separate database file for live tests to avoid polluting mock state.
+The `--live-feishu` flag is reserved for future use. In Phase 1, the CLI will reject this flag with a clear message indicating that live transport is not yet implemented. It is recommended to use a separate database file for live tests to avoid polluting mock state.
 
 ### 1. Process Fixture (Create & Send)
 This command processes a Hermes fixture, creates a card entity, and sends it to a recipient.

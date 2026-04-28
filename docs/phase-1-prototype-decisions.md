@@ -4,10 +4,17 @@
 
 ## Scope (范围)
 
+- **Package Form**: Python 库 + 命令行工具 (`python -m feishu_messaging_card_builder.cli`)。
 - **Final Replies Only**: 仅处理 Hermes 的最终回复消息。不处理中间推理状态、流式输出、工具调用过程或后台日志。
 - **One Card Per Final Reply**: 每条 Hermes 最终回复对应且仅对应一个飞书卡片实体。
 - **Websocket-only**: 仅支持 Hermes 的 Feishu/Lark websocket 连接模式。
-- **English/Chinese Support**: 支持中英文内容转换。
+- **English/Chinese Support**: 支持 中英文内容转换。
+
+## Rejected Alternatives (已否决的方案)
+
+- **Separate Service Process**: 否决将桥接层作为一个独立的 HTTP 服务运行，因为这会增加部署复杂度并引入额外的网络延迟。
+- **Node.js Server**: 否决使用 Node.js，为了保持与 Hermes (Python) 的技术栈一致，降低维护门槛。
+- **Inline Hermes Patch**: 否决直接在 Hermes 核心逻辑中硬编码卡片渲染逻辑，因为这不利于版本升级和长期维护。
 
 ## Content Contract (内容契约)
 
