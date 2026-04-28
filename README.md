@@ -6,7 +6,7 @@
 
 一个已经提前确认的方向是：飞书卡片应采用“创建卡片实体，获得 `card_id`，再通过卡片 ID 发送、更新”的方式，而不是把卡片 JSON 作为一次性消息直接发送。
 
-当前设计资料以 Hermes Feishu/Lark 的 websocket 模式、飞书卡片实体生命周期和可逆集成为前提。
+当前设计资料以 Hermes Feishu/Lark 的 websocket 模式、飞书卡片实体生命周期和可逆集成为前提。面向协作者与代码代理的详细工作规则见 `AGENTS.md`。
 
 ## 当前阶段
 
@@ -26,6 +26,7 @@
 - `docs/roadmap.md`：长期发展方向、阶段路线与决策检查点。
 - `docs/git-standards.md`：分支、提交、PR 与历史整理规范。
 - `docs/open-questions.md`：正式设计前必须确认的问题。
+- `AGENTS.md`：仓库工作规则、文档导航、禁止事项与验证方式。
 
 ## 权威资料
 
