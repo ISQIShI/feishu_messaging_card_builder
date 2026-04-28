@@ -13,6 +13,7 @@
 ## 飞书卡片生命周期
 
 - 项目标准的发送路径应使用哪个官方端点和 payload 形态来发送 `card_id`？
+  - **Answered (Phase 2 live validation)**: Official IM interactive message path confirmed via `lark-cli`, evidence at `.sisyphus/evidence/plan-2/`.
 - 每条 Hermes 输出是否都创建新卡片实体，还是同一会话复用某张卡片？
 - 卡片更新是整卡替换、组件级更新，还是只更新固定内容块？
 - `card_id`、飞书 message ID、Hermes session/message ID 之间的映射由谁持久化？

@@ -1,15 +1,54 @@
 # Phase 1 Live Validation Guide
 
 > [!IMPORTANT]
-> **Live Feishu transport is not yet implemented.** Running commands with `--live-feishu` will produce an error message. The commands below show the intended future usage. Mock transport (`--mock-feishu`) is the only working mode for Phase 1.
-
-This document provides instructions for performing optional live validation of the Feishu Messaging Card Builder against a real Feishu tenant.
+> **Project CLI `--live-feishu` remains unimplemented.** Running commands with `--live-feishu` will produce a message indicating it is not yet available. Live validation for Phase 1 was performed using `lark-cli` to verify API contracts. Evidence of these runs is stored in `.sisyphus/evidence/plan-2/`.
 
 ## Overview
 
-Live validation is **optional evidence** used to confirm that the generated payloads and interaction sequences work correctly with the actual Feishu Open Platform APIs. For Phase 1 completion, **mock tests are authoritative**. Live runs are used to record evidence of real-world compatibility and to detect any undocumented API behavior changes.
+Live validation was performed to confirm that the generated payloads and interaction sequences work correctly with the actual Feishu Open Platform APIs. While the project CLI's live transport is pending, manual validation via `lark-cli` has confirmed the **create -> send -> update -> stale-sequence** contract.
+
+## Confirmed API Contracts
+
+Based on live evidence in `.sisyphus/evidence/plan-2/07-contract-delta.md`:
+
+### 1. Create Card Entity
+- **Endpoint**: `POST /open-apis/cardkit/v1/cards`
+- **Body**: `{"type":"card_json", "data":"..."}`
+- **Note**: Confirmed correct. Returns a `card_id`.
+
+### 2. Send Message by card_id
+- **Endpoint**: `POST /open-apis/im/v1/messages?receive_id_type=open_id`
+- **Body**:
+  ```json
+  {
+    "receive_id": "<id>",
+    "msg_type": "interactive",
+    "content": "{\"type\":\"card\",\"data\":{\"card_id\":\"<card_id>\"}}"
+  }
+  ```
+- **Note**: This is the official path for interactive messages using a card entity.
+
+### 3. Update Card Entity
+- **Endpoint**: `PUT /open-apis/cardkit/v1/cards/:card_id`
+- **Body**:
+  ```json
+  {
+    "card": {
+      "type": "card_json",
+      "data": "<new_json>"
+    },
+    "uuid": "<uuid>",
+    "sequence": <int>
+  }
+  ```
+- **Note**: Card data must be wrapped under the `card` key.
+
+### 4. Stale Sequence
+- **Behavior**: Reusing or decreasing a `sequence` number returns error `300317` (`sequence number compare failed`).
+- **Contract**: The `sequence` must strictly increase for each update.
 
 ## Required Environment Variables
+
 
 To enable live Feishu interaction, you must set the following environment variables in your shell. These credentials allow the tool to obtain an `app_access_token` from Feishu.
 
@@ -39,9 +78,9 @@ When running live commands, you must provide a valid recipient ID (e.g., `open_i
 - The default mock recipient is `mock-open-id`.
 - For live runs, use your own `open_id` (found in the Feishu Open Platform -> Contacts or via the API Explorer).
 
-## Exact Live Commands
+## Exact Live Commands (Future Usage)
 
-The `--live-feishu` flag is reserved for future use. In Phase 1, the CLI will reject this flag with a clear message indicating that live transport is not yet implemented. It is recommended to use a separate database file for live tests to avoid polluting mock state.
+The `--live-feishu` flag is reserved for future implementation. Currently, the CLI will reject this flag with a message indicating it is unimplemented. The commands below represent the target CLI behavior once live transport is integrated.
 
 ### 1. Process Fixture (Create & Send)
 This command processes a Hermes fixture, creates a card entity, and sends it to a recipient.
@@ -73,7 +112,7 @@ python -m feishu_messaging_card_builder.cli inspect-state --db .fmcb/live.sqlite
 
 ## Payload-Proof Note
 
-The current implementation uses a `legacy_template_send` payload structure for sending by `card_id`. This exact payload shape must be verified against the Feishu API Explorer or a live tenant.
+Phase 2 live validation using `lark-cli` has confirmed the official API shapes. The `legacy_template_send` path has been superseded by the `interactive` message type with a `card_id` payload.
 
 If a live command fails due to a payload mismatch:
 1. Record the exact error response in a new evidence file.

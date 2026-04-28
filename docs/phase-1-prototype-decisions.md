@@ -15,6 +15,7 @@
 - **Separate Service Process**: 否决将桥接层作为一个独立的 HTTP 服务运行，因为这会增加部署复杂度并引入额外的网络延迟。
 - **Node.js Server**: 否决使用 Node.js，为了保持与 Hermes (Python) 的技术栈一致，降低维护门槛。
 - **Inline Hermes Patch**: 否决直接在 Hermes 核心逻辑中硬编码卡片渲染逻辑，因为这不利于版本升级和长期维护。
+- **Legacy Template Send**: 否决使用 `legacy_template_send` 路径，Plan 2 实时验证确认该路径已被官方 IM `interactive` 消息路径取代。
 
 ## Content Contract (内容契约)
 
@@ -27,6 +28,11 @@
 
 - **Full-card Replacement**: 更新时采取全量替换模式，不进行增量组件差异对比（diffing）。
 - **Sequence-based Update**: 基于自增序列或时间戳确保更新顺序，避免旧版本覆盖新版本。
+- **Update Envelope**: 更新请求体必须将卡片内容包裹在 `card` 键下：`{"card": {"type": "card_json", "data": "..."}, ...}` (Plan 2 实时验证确认)。
+
+## Send Path (发送路径)
+
+- **Official IM Interactive**: 采用飞书官方 IM 消息接口，消息类型为 `interactive`，内容指定 `type: "card"` 和 `card_id` (Plan 2 实时验证确认)。
 
 ## Storage (存储)
 
@@ -37,6 +43,7 @@
 
 - **Mock-first Validation**: 核心逻辑必须能通过 mock 飞书 API 进行验证。
 - **Optional Live Evidence**: 实时发送到飞书作为可选证据，非强制性阻断测试。
+- **Plan 2 Results**: 实时验证（通过 `lark-cli`）已确认官方 API 契约，证据记录在 `.sisyphus/evidence/plan-2/`。
 
 ## Out-of-scope Items (超出范围)
 

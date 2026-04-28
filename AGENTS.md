@@ -46,6 +46,7 @@ feishu_messaging_card_builder/
 - Feishu connection scope is Hermes Feishu/Lark websocket only.
 - Webhook is official background context, not a design target, config path, or test matrix item.
 - Feishu card flow is entity-first: create card entity → obtain `card_id` → send/update by card ID.
+- Prefer official Feishu APIs; check official API documentation before self-implementation; keep the implementation simple (Plan 2 live validation reference).
 - One-shot raw Card JSON sending must not become the primary path.
 - Any Hermes/runtime/non-repo modification must be installable, checkable, updateable, uninstallable, auditable, and recoverable.
 - Hermes model calls, tool calls, sessions, and command semantics remain semantic source of truth; card display must not pollute them.
