@@ -5,7 +5,7 @@
 
 ## Overview
 
-Live validation was performed to confirm that the generated payloads and interaction sequences work correctly with the actual Feishu Open Platform APIs. While the project CLI's live transport is pending, manual validation via `lark-cli` has confirmed the **create -> send -> update -> stale-sequence** contract.
+Live validation was performed to confirm that the generated payloads and interaction sequences work correctly with the actual Feishu Open Platform APIs. While the project CLI's live transport is pending, manual validation via `lark-cli` has confirmed the **create -> send -> update -> stale-sequence** contract. `lark-cli` was used for validation only; it is not a runtime or package dependency of this project.
 
 ## Confirmed API Contracts
 

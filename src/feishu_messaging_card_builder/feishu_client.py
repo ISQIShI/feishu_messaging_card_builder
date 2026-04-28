@@ -29,7 +29,6 @@ LIVE_REQUIRED_ENV: Final[list[str]] = ["FEISHU_APP_ID", "FEISHU_APP_SECRET"]
 
 CARDKIT_CREATE_PATH: Final[str] = "/open-apis/cardkit/v1/cards"
 IM_MESSAGES_PATH: Final[str] = "/open-apis/im/v1/messages"
-_LEGACY_TEMPLATE_SEND_PATH: Final[str] = "legacy_template_send"
 
 
 @final
@@ -135,26 +134,6 @@ def build_card_entity_send_request(
                 ensure_ascii=False,
                 separators=(",", ":"),
             ),
-        },
-    }
-
-
-def _build_legacy_template_send_request(card_id: str, recipient: str) -> TransportRequest:  # pyright: ignore[reportUnusedFunction]
-    """Deprecated Phase 1 payload-proof helper retained for historical reference.
-
-    Keep private: Plan 2 live validation confirmed the official IM messages
-    endpoint contract should be used for send operations.
-    """
-
-    return {
-        "method": "POST",
-        "path": _LEGACY_TEMPLATE_SEND_PATH,
-        "body": {
-            "recipient": recipient,
-            "type": "template",
-            "data": {
-                "template_id": card_id,
-            },
         },
     }
 
