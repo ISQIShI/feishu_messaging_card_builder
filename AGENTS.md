@@ -6,15 +6,17 @@
 
 ## OVERVIEW
 
-Docs-only restart branch for a Hermes → Feishu card-entity bridge. No runnable code, tests, install scripts, or Hermes patches should exist in the current phase.
+Phase 1 minimal prototype for a Hermes → Feishu card-entity bridge. Contains Python package, tests, and CLI.
 
 ## STRUCTURE
 
 ```text
 feishu_messaging_card_builder/
-├── README.md              # user-facing landing page only
+├── README.md              # user-facing landing page
 ├── AGENTS.md              # agent/developer operating rules
-├── docs/                  # direction, research, roadmap, git standards
+├── src/                   # Python package source code
+├── tests/                 # core test suite (49 tests)
+├── docs/                  # direction, research, phase 1 decisions, standards
 ├── LICENSE
 └── .gitignore
 ```
@@ -25,19 +27,19 @@ feishu_messaging_card_builder/
 |------|----------|-------|
 | Understand phase and public purpose | `README.md` | Keep concise and user-facing. |
 | Navigate docs | `docs/README.md` | Canonical reading order. |
+| Phase 1 Decisions | `docs/phase-1-prototype-decisions.md` | Why the prototype is built this way. |
+| Outbound Seam | `docs/hermes-outbound-seam-memo.md` | Integration points with Hermes. |
+| Validation Evidence | `docs/phase-1-live-validation.md` | Proof of prototype success. |
 | Project boundaries | `docs/project-direction.md` | Entity-first, websocket-only, reversible external changes. |
-| Hermes facts | `docs/hermes-research.md` | Official-doc findings; webhook is background only. |
 | Feishu card facts | `docs/feishu-card-research.md` | Card JSON v2, `card_id`, entity lifecycle constraints. |
-| Long-term path | `docs/roadmap.md` | Stable principles vs flexible choices. |
 | Git process | `docs/git-standards.md` | Branch, commit, PR, history rules. |
-| Unresolved decisions | `docs/open-questions.md` | Do not silently decide these in code. |
 
 ## CURRENT PHASE
 
-- Phase 0: direction and documentation baseline.
-- Validate docs, tree shape, and Git history only.
-- Do not add runnable implementation, tests, package metadata, or install scripts unless explicitly asked to leave planning mode.
-- Do not turn open questions into implementation assumptions.
+- Phase 1: Minimal prototype implementation and validation.
+- Verify core logic with `python -m pytest`.
+- Explore new integration seams in `docs/hermes-outbound-seam-memo.md`.
+- Do not turn remaining open questions into implementation assumptions.
 
 ## NON-NEGOTIABLE PROJECT CONSTRAINTS
 
@@ -76,9 +78,14 @@ Put those in `AGENTS.md`, `docs/AGENTS.md`, or the focused docs under `docs/`.
 ## COMMANDS
 
 ```bash
-# Docs/tree validation only; no build/test commands exist yet.
-GIT_MASTER=1 git status --short --branch
+# Core logic validation
+python -m pytest
+
+# Git cleanliness validation
 GIT_MASTER=1 git diff --check
+
+# CLI help check
+python -m feishu_messaging_card_builder.cli --help
 ```
 
 ## GIT RULES
@@ -93,10 +100,9 @@ GIT_MASTER=1 git diff --check
 ## VALIDATION BEFORE FINISHING
 
 - Read `README.md` and relevant `docs/*.md` after edits.
+- Ensure all 49 tests pass via `python -m pytest`.
 - Search for stale old-implementation references before finalizing.
-- Confirm no runnable code/test/script surface was reintroduced unintentionally.
 - Run `GIT_MASTER=1 git diff --check`.
-- Report that there are no build/test/CI commands in the current phase.
 
 ## NOTES
 
