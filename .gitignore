@@ -15,6 +15,7 @@ __pycache__/
 .idea/
 
 .sisyphus/
+.sisyphus/evidence/plan-2/*.secret
 *.egg-info/
 *.pyi
 py.typed

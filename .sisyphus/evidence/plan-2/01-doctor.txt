@@ -1,0 +1,51 @@
+{
+  "checks": [
+    {
+      "name": "cli_version",
+      "status": "pass",
+      "message": "1.0.21"
+    },
+    {
+      "name": "cli_update",
+      "status": "pass",
+      "message": "1.0.21 (up to date)"
+    },
+    {
+      "name": "config_file",
+      "status": "pass",
+      "message": "config.json found"
+    },
+    {
+      "name": "app_resolved",
+      "status": "pass",
+      "message": "app: cli_a97a5787cb385bd6 (feishu)"
+    },
+    {
+      "name": "token_exists",
+      "status": "pass",
+      "message": "token found for 张林杰 (ou_2e72b082bde81c162a1b6b83a614e336)"
+    },
+    {
+      "name": "token_local",
+      "status": "pass",
+      "message": "token valid, expires 2026-04-29T03:18:50+08:00"
+    },
+    {
+      "name": "token_verified",
+      "status": "pass",
+      "message": "server confirmed token is valid"
+    },
+    {
+      "name": "endpoint_open",
+      "status": "pass",
+      "message": "https://open.feishu.cn reachable"
+    },
+    {
+      "name": "endpoint_mcp",
+      "status": "pass",
+      "message": "https://mcp.feishu.cn/mcp reachable"
+    }
+  ],
+  "ok": true,
+  "workspace": "local"
+}
