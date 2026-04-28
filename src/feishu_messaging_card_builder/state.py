@@ -41,6 +41,7 @@ class BridgeRecord(TypedDict):
     session_key: str
     hermes_message_id: str | None
     final_reply_index: int
+    content_markdown: str
     content_hash: str
     card_id: str | None
     feishu_message_id: str | None
@@ -85,8 +86,8 @@ class BridgeStateManager:
                     (
                         "INSERT OR IGNORE INTO card_deliveries ("
                         "bridge_message_id, source_platform, session_key, hermes_message_id, "
-                        "final_reply_index, content_hash, status, created_at, updated_at"
-                        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                        "final_reply_index, content_markdown, content_hash, status, created_at, updated_at"
+                        ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                     ),
                     (
                         bridge_message_id,
@@ -94,6 +95,7 @@ class BridgeStateManager:
                         fixture["session_key"],
                         fixture.get("hermes_message_id"),
                         int(fixture["final_reply_index"]),
+                        fixture["content_markdown"],
                         content_hash,
                         Status.NEW.value,
                         now,
@@ -211,6 +213,7 @@ class BridgeStateManager:
                         "session_key TEXT NOT NULL, "
                         "hermes_message_id TEXT, "
                         "final_reply_index INTEGER NOT NULL, "
+                        "content_markdown TEXT NOT NULL, "
                         "content_hash TEXT NOT NULL, "
                         "card_id TEXT, "
                         "feishu_message_id TEXT, "
@@ -249,6 +252,7 @@ class BridgeStateManager:
                 "session_key": cast(str, row["session_key"]),
                 "hermes_message_id": cast(str | None, row["hermes_message_id"]),
                 "final_reply_index": cast(int, row["final_reply_index"]),
+                "content_markdown": cast(str, row["content_markdown"]),
                 "content_hash": cast(str, row["content_hash"]),
                 "card_id": cast(str | None, row["card_id"]),
                 "feishu_message_id": cast(str | None, row["feishu_message_id"]),

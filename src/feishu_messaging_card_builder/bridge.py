@@ -166,6 +166,12 @@ class BridgeOrchestrator:
             mock_calls=self._mock_calls_since(call_count_before),
         )
 
+    def cache_parsed_reply(self, bridge_message_id: str, parsed: ParsedFinalReply) -> None:
+        self._parsed_cache[bridge_message_id] = parsed
+
+    def has_cached_parsed_reply(self, bridge_message_id: str) -> bool:
+        return bridge_message_id in self._parsed_cache
+
     def get_bridge_messages(self) -> list[dict[str, object]]:
         return [dict(record) for record in self._state.list_records()]
 
