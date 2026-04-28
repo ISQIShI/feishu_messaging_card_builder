@@ -1,4 +1,0 @@
-feishu_messaging_card_builder:
-  enabled: true
-  mode: final_only
-  fallback_to_text: true

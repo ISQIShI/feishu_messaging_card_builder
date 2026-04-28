@@ -2,9 +2,6 @@
 __pycache__/
 *.py[cod]
 
-# Test / local temp payloads
-/tests/tmp_payload*.json
-
 # Local generated docs or scratch
 *.log
 
@@ -16,3 +13,5 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+.sisyphus
