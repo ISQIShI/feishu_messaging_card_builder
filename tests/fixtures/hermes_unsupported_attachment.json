@@ -1,0 +1,15 @@
+{
+  "source_platform": "feishu",
+  "session_key": "sess-attachment-001",
+  "hermes_message_id": "hermes-msg-attachment-0001",
+  "final_reply_index": 1,
+  "content_markdown": "The final reply body is plain markdown, but the payload also contains an attachment.",
+  "created_at": "2026-04-29T10:45:00Z",
+  "attachments": [
+    {
+      "type": "file",
+      "name": "report.pdf",
+      "url": "https://example.invalid/report.pdf"
+    }
+  ]
+}
