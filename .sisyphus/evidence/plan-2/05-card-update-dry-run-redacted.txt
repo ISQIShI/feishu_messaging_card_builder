@@ -14,7 +14,7 @@
       }
     }
   ],
-  "appId": "cli_a97a5787cb385bd6",
+  "appId": "<redacted-app-id>",
   "as": "bot",
-  "userOpenId": "ou_2e72b082bde81c162a1b6b83a614e336"
+  "userOpenId": "<redacted-open-id>"
 }

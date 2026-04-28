@@ -18,12 +18,12 @@
     {
       "name": "app_resolved",
       "status": "pass",
-      "message": "app: cli_a97a5787cb385bd6 (feishu)"
+      "message": "app: <redacted-app-id> (feishu)"
     },
     {
       "name": "token_exists",
       "status": "pass",
-      "message": "token found for 张林杰 (ou_2e72b082bde81c162a1b6b83a614e336)"
+      "message": "token found for <redacted> (<redacted-open-id>)"
     },
     {
       "name": "token_local",
