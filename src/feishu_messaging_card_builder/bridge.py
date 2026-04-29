@@ -24,11 +24,9 @@ UPDATE_MARKER = "\n\n> Updated by Phase 1 prototype"
 _EXPLICIT_PRE_ACCEPTANCE_REJECTION_PATTERNS = (
     "invalid receive_id",
     "receive_id is invalid",
-    "invalid open_id",
-    "open_id is invalid",
 )
 _SENSITIVE_FAILURE_VALUE_PATTERN = re.compile(
-    r"(?i)\b(?:[a-z0-9]+_id|tenant_key|app_secret|token|troubleshooter)\b\s*[:=]\s*[^;,\s]+"
+    r"(?i)\b((?:[a-z0-9]+_id|tenant_key|app_secret|token|troubleshooter))\b\s*([:=])\s*[^;,\s]+"
 )
 _BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+-]+")
 _URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
@@ -569,7 +567,10 @@ class BridgeOrchestrator:
 
     @staticmethod
     def _redact_failure_text(text: str) -> str:
-        redacted = _SENSITIVE_FAILURE_VALUE_PATTERN.sub(lambda match: f"{match.group(0).split('=')[0].strip()}=[REDACTED]", text)
+        redacted = _SENSITIVE_FAILURE_VALUE_PATTERN.sub(
+            lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
+            text,
+        )
         redacted = _BEARER_PATTERN.sub("Bearer [REDACTED]", redacted)
         redacted = _URL_PATTERN.sub("[REDACTED_URL]", redacted)
         redacted = _LONG_TOKEN_PATTERN.sub("[REDACTED]", redacted)

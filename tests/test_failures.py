@@ -237,10 +237,6 @@ def test_explicit_rejection_allows_retry(tmp_path: Path) -> None:
             True,
         ),
         (
-            "FeishuApiError; status_code=400; summary=code=230020; msg=invalid open_id",
-            True,
-        ),
-        (
             "FeishuApiError; status_code=400; summary=code=230020; msg=invalid chat_id",
             False,
         ),
@@ -256,6 +252,10 @@ def test_explicit_rejection_allows_retry(tmp_path: Path) -> None:
         ("FeishuApiError; status_code=500; summary=error=upstream unavailable", False),
         ("FeishuApiError; status_code=400; summary=msg=invalid receive_id", False),
         ('FeishuApiError; status_code=400; summary={"code": 0, "msg": "invalid receive_id"}', False),
+        (
+            "FeishuApiError; status_code=400; summary=msg: invalid receive_id",
+            False,
+        ),
         (None, False),
     ],
 )
@@ -302,6 +302,62 @@ def test_failed_send_reason_is_redacted(tmp_path: Path) -> None:
     assert "Bearer abc.def.ghi" not in failure_reason
     assert "FeishuApiError" in failure_reason
     assert "status_code=503" in failure_reason
+
+
+def test_failed_send_reason_redacts_colon_separated_values(tmp_path: Path) -> None:
+    transport = MockFeishuTransport()
+    original_send = transport.record_send
+    did_fail_send = False
+
+    def fail_first_send(card_id: str, recipient: str) -> JSONDict:
+        nonlocal did_fail_send
+        if not did_fail_send:
+            did_fail_send = True
+            request = build_card_entity_send_request(card_id, recipient)
+            error_response = cast(
+                JSONDict,
+                {
+                    "error": "mock send failure",
+                    "status_code": 503,
+                    "message": (
+                        "tenant_key: tenant-secret; app_secret: app-secret-value; "
+                        "token: token-value; troubleshooter: https://example.invalid/troubleshooter?id=abc123"
+                    ),
+                },
+            )
+            params = request.get("params")
+            transport.calls.append(
+                {
+                    "method": request["method"],
+                    "path": request["path"],
+                    "params": params,
+                    "body": request["body"],
+                    "response": error_response,
+                }
+            )
+            raise FeishuApiError(
+                "Mock Feishu send failed",
+                status_code=503,
+                response=error_response,
+            )
+        return original_send(card_id, recipient)
+
+    object.__setattr__(transport, "record_send", fail_first_send)
+    orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    with pytest.raises(BridgeOrchestrationError):
+        _ = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:redacted-colon")
+
+    failure_reason = state.list_records()[0]["failure_reason"]
+
+    assert failure_reason is not None
+    assert "tenant-secret" not in failure_reason
+    assert "app-secret-value" not in failure_reason
+    assert "token-value" not in failure_reason
+    assert "tenant_key:[REDACTED]" in failure_reason
+    assert "app_secret:[REDACTED]" in failure_reason
+    assert "token:[REDACTED]" in failure_reason
+    assert "troubleshooter:[REDACTED]" in failure_reason
 
 
 def test_update_sequence_monotonicity(tmp_path: Path) -> None:
