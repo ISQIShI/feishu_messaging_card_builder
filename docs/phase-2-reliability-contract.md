@@ -1,8 +1,8 @@
 # Phase 2 Reliability Contract
 
-本文档冻结 Plan 3 在代码变更前必须遵守的最小可靠性契约。它只解决本计划已经明确决定的状态、身份、幂等、更新窗口、失败分类和恢复边界；未在此处明确冻结的内容，仍应视为开放问题而不是隐含承诺。
+本文档冻结 Plan 3 在代码变更前必须遵守的最小可靠性契约，并补充 Plan 4 对 Plan 3 收尾遗留 delta 的 closeout 约束。它只解决本计划已经明确决定的状态、身份、幂等、更新窗口、失败分类和恢复边界；未在此处明确冻结的内容，仍应视为开放问题而不是隐含承诺。
 
-> 范围说明：本文档只约束 SQLite 中心的最小状态模型、发送/更新决策和证据口径。Plan 3 的契约审计、测试与脚本命令统一使用 `.venv/bin/python`，但这不是新的运行时传输路径。
+> 范围说明：本文档只约束 SQLite 中心的最小状态模型、发送/更新决策和证据口径。Plan 3 的契约审计、测试与脚本命令统一使用 `.venv/bin/python`，但这不是新的运行时传输路径；Plan 4 closeout 也不把 websocket bridge implementation、repo-owned live transport、Hermes patch、component-level update 或 reconcile command 扩展成当前承诺。
 
 ## 1. State Machine Table
 
@@ -56,6 +56,12 @@ Plan 3 冻结以下 changed-content 规则：
 
 - “ambiguous” 在此处指不能安全断定远端是否已接受发送/更新的状态，不能把它自动乐观地解释成可继续复用同一 `card_id`。
 - changed-content 规则的目标是防止无声重复卡片，不是扩展为任意内容版本分叉系统。
+- Plan 4 closeout 将 changed-content branching 进一步收窄为按 lifecycle state 分支，而不是按“上层想做什么”分支：
+  - Same `bridge_message_id` + different `content_hash` + `new` / `card_created` / `send_pending` / `send_failed` → 仅允许 mutate 现有待发送记录，然后继续 pending/send 路径；这里的 `pending` 指记录仍处于卡已创建但消息尚未被安全确认为远端接受之前。
+  - Same `bridge_message_id` + different `content_hash` + `sent` / `updated` / `update_failed` 且未过期 → 仅允许进入 update path；不得静默新建第二张卡，也不得回退成 resend。
+  - Same `bridge_message_id` + different `content_hash` + `reconciliation_required` 或任意 ambiguous 状态 → 不产生新的 send/update side effect，状态保持或收敛为 `reconciliation_required`，等待人工协调。
+  - Same `bridge_message_id` + different `content_hash` + `expired` → 维持 `expired` 终态；不得借 content change 重新激活既有记录。
+- 上层映射 `BridgeStateError` 时，必须先依据当前生命周期状态决定“mutate pending record / use update path / stay reconciliation_required / stay expired”，再决定返回给调用者的提示，不允许越过状态机直接补发副作用。
 
 ## 4. Migration Policy
 
@@ -86,6 +92,8 @@ Plan 3 把可更新窗口冻结为持久字段 `updatable_until`。
 
 - 过期后不尝试“最好试一下也许还能成功”的更新；Plan 3 要求状态先收敛为 `expired`。
 - 该窗口是针对“是否还允许对既有卡片继续更新”的本地契约，不等价于新的发送窗口。
+- Plan 4 closeout 明确 `expired` 采用 lazy materialization：只在 update attempt 或 safe inspect-state read 发生时，把“已超过 `updatable_until`”的事实显式收敛为 `expired`；本计划不引入 background sweeper。
+- `expired` 一旦被物化，就是终态；后续 inspect-state 只能报告该终态，不能为了“也许远端还能改”而回退到 `sent`、`updated` 或 `update_failed`。
 
 ## 6. Version Semantics
 
@@ -113,6 +121,7 @@ Plan 3 将 `version` 冻结为“last remotely accepted” 的 Feishu 更新序�
 
 - “允许同卡重试”不是广义重试开关，只适用于已经被明确证明属于 pre-acceptance rejection 的发送错误。
 - Plan 3 的 live validation 只要求收窄到 `invalid receive_id` 这类显式拒绝边界，不把更宽泛的远端错误一并视为安全可重试。
+- Plan 4 closeout 将 resend policy 进一步收窄为：same-`card_id` retry ONLY for invalid `receive_id` 这类已被 Plan 3 live-proven 的 explicit pre-acceptance rejection。timeout、5xx、连接中断、unknown error、响应缺字段、或任何“看起来像被拒绝但不能证明发生在 acceptance 之前”的情况，统一进入 `reconciliation_required`。
 
 ## 8. Update Failure Classes
 
@@ -126,6 +135,7 @@ Plan 3 将 `version` 冻结为“last remotely accepted” 的 Feishu 更新序�
 
 - 模糊更新失败同样不能推进 `version`；如果无法判断远端是否已接受更新，应转入 `reconciliation_required` 而不是伪装成普通 `update_failed` 成功可重试。
 - `expired` 在更新路径中优先表示“本地契约已不允许继续更新”，不再尝试新序号补发。
+- Plan 4 closeout 对 ambiguous update 的处理再加一条硬约束：一旦更新结果无法安全判定，立即进入 `reconciliation_required`，且 `version` 保持 last remotely accepted 值不变；不得把 ambiguous update 降格成普通 retryable `update_failed`。
 
 ## 9. Restart-Safe Updates
 
@@ -154,3 +164,59 @@ Plan 3 文档与实现必须对“哪些是已验证事实、哪些只是文档�
 
 - live validation 只用于收窄可靠性边界，不应把未观察到的行为扩大解释为通用平台承诺。
 - 文档、测试与证据必须同步表达“已验证”“仅文档支持”“需要人工协调”三种不同确定性等级。
+
+## 11. Safe Inspect-State Schema
+
+Plan 4 closeout 为 `inspect-state` 冻结一个 safe inspect-state 默认输出模式，用于证据、排障摘要和状态审计。
+
+- 默认输出必须优先服务“状态是否安全、下一步操作是什么”，而不是暴露原始载荷。
+- 默认输出排除以下 raw 字段或等价信息：raw IDs、raw `content_markdown`、raw `card_id` / `message_id` / `receive_id` / `log_id` / `tenant_key`、完整 error body、token、troubleshooter URL。
+- 默认输出可以保留经过脱敏或归类后的字段，例如状态、版本、`content_hash`、时间戳、`updatable_until`、失败类别、精简错误码、是否需要人工协调。
+- raw/debug 输出必须放在显式 flag 后面，且与默认安全模式清晰区分。
+- safe inspect-state read 同时承担过期惰性物化责任：如果读取时发现已超过 `updatable_until`，应按本契约把记录安全收敛为 `expired` 后再输出。
+- safe inspect-state 默认输出 NEVER 用作“远端已接受”的证据替代品；证据口径仍以受控日志、测试产物和审计文件为准。
+
+补充约束：
+
+- safe inspect-state 的目标是减少误泄露，而不是提供新的运行时 bridge 或外部同步接口。
+- debug flag 只是显式排障入口，不改变默认证据口径，也不降低脱敏要求。
+
+## 12. Failure Persistence Sanitization
+
+Plan 4 closeout 冻结失败持久化最小集，避免把远端原始错误响应整体写入本地状态。
+
+- 持久化失败信息时，只保留 typed class / code + redacted summary。
+- redacted summary 只允许表达最小诊断事实，例如“invalid receive_id”“stale sequence”“timeout during update attempt”。
+- 永不持久化 full response body、完整 headers、完整 request payload、token、tenant 标识、troubleshooter URL 或其他可能泄露环境细节的原文。
+- 如果错误对象结构过大或来源不稳定，应先做类型归类与摘要脱敏，再决定是否写入持久状态。
+
+补充约束：
+
+- “需要人工协调”不等于“把所有原始错误细节都落库”；人工协调所需证据应来自受控日志与显式调试材料。
+- 失败持久化 sanitization 同时约束 send 和 update 路径，不因失败阶段不同而放宽原文保存。
+
+## 13. `--live-feishu` Placeholder Contract
+
+Plan 4 closeout 明确 `--live-feishu` 仍是 fail-closed placeholder，而不是半实现入口。
+
+- 无论环境变量是否存在、配置是否看起来完整，`--live-feishu` 都必须一致地 fail-closed。
+- CLI 返回的应是稳定、可预期的 unimplemented message，明确说明当前仓库不提供 repo-owned live transport。
+- 该 placeholder 只保留未来接线位置，不代表本仓库已经拥有 runtime bridge；换言之，当前仍是 no runtime bridge 的仓库边界，也不应被表述成“差最后一点配置即可上线”。
+
+补充约束：
+
+- Phase 2 reliability closeout 不引入 live transport implementation details。
+- 与 live Feishu API 的现实验证仍通过受控外部工具和证据文件表达，而不是把仓库 CLI 描述成已接管真实发送链路。
+
+## 14. Public Phase Wording
+
+Plan 4 closeout 冻结对外阶段表述，避免在契约完成前误报阶段状态。
+
+- 对外公开措辞应使用：`Phase 1 prototype with Phase 2 reliability hardening in progress/closeout`。
+- 在 Plan 4 全部通过前，不得宣称 “Phase 2 complete” 或等价表达。
+- 文档若需要同时表达当前软件已有能力与可靠性收尾状态，应优先说明：仓库已有 Phase 1 prototype，而 Phase 2 reliability hardening 仍在进行或收尾中。
+
+补充约束：
+
+- 该公开措辞约束的是阶段表述，不是新增路线图承诺。
+- 阶段措辞不得被延伸解释为本仓库已经承担 runtime websocket bridge、Hermes patch 或其他超出当前范围的交付。

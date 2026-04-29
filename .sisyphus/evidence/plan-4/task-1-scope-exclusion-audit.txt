@@ -1,0 +1,16 @@
+Task 1 scope exclusion audit
+Source: docs/phase-2-reliability-contract.md
+
+Forbidden commitment terms reviewed:
+- websocket bridge implementation -> appears only in line 5 as an explicit non-commitment.
+- repo-owned live transport -> appears in lines 5 and 203 only as an explicit exclusion / placeholder boundary.
+- Hermes patch -> appears in lines 5 and 222 only as an explicit non-scope statement.
+- component-level update -> appears in line 5 only as an explicit non-commitment.
+- reconcile command -> appears in line 5 only as an explicit non-commitment.
+
+Result:
+- No forbidden item is introduced as an active commitment.
+- No Phase 3 runtime bridge design was added.
+- No live transport implementation detail was added.
+- No reconcile command or new architecture was added.
+- Existing contract decisions were preserved and only extended with closeout detail.

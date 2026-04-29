@@ -1,0 +1,19 @@
+Task 1 contract delta audit
+Source: docs/phase-2-reliability-contract.md
+
+Required terms confirmed:
+- changed-content -> lines 46, 58-64
+- expired -> lines 22, 28, 89, 95-96, 132, 137, 176
+- safe inspect-state -> lines 95, 168-181
+- fail-closed placeholder -> lines 198-204
+- no runtime bridge -> line 204
+- Phase 2 reliability hardening -> lines 215, 217
+
+Required closeout deltas confirmed:
+- Changed-content branching by lifecycle state added with pending mutate, sent/unexpired update path, ambiguous/reconciliation no side effect, expired terminal handling.
+- Expiry materialization clarified as lazy on update attempt and safe inspect-state read; no background sweeper; expired remains terminal.
+- Safe inspect-state schema defined as safe-by-default with raw/debug behind explicit flag and not valid as acceptance evidence.
+- Failure persistence restricted to typed class/code plus redacted summary only.
+- Narrow resend/update ambiguity policy restricted to explicit pre-acceptance invalid receive_id retry and reconciliation_required for timeout/5xx/unknown or ambiguous update.
+- --live-feishu documented as fail-closed placeholder with stable unimplemented message and no runtime bridge implication.
+- Public phase wording fixed to "Phase 1 prototype with Phase 2 reliability hardening in progress/closeout" until Plan 4 passes.
