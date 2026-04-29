@@ -1,7 +1,7 @@
 # Phase 1 Live Validation Guide
 
 > [!IMPORTANT]
-> **Project CLI `--live-feishu` remains unimplemented.** Running commands with `--live-feishu` will produce a message indicating it is not yet available. Live validation for Phase 1 was performed using `lark-cli` to verify API contracts. Evidence of these runs is stored in `.sisyphus/evidence/plan-2/`.
+> **Project CLI `--live-feishu` is a tested fail-closed placeholder.** This flag is intentionally not operational in the prototype to prevent accidental unauthorized API calls. Running commands with `--live-feishu` will produce a controlled error message and exit gracefully. Live validation for Phase 1 was performed using `lark-cli` to verify API contracts and confirmed the core logic's readiness. Evidence of these runs is stored in `.sisyphus/evidence/plan-2/`.
 
 ## Overview
 
@@ -80,7 +80,7 @@ When running live commands, you must provide a valid recipient ID (e.g., `open_i
 
 ## Exact Live Commands (Future Usage)
 
-The `--live-feishu` flag is reserved for future implementation. Currently, the CLI will reject this flag with a message indicating it is unimplemented. The commands below represent the target CLI behavior once live transport is integrated.
+The `--live-feishu` flag is a tested fail-closed placeholder. Currently, the CLI will reject this flag with a message indicating it is not operational in the prototype. The commands below represent the target CLI behavior once live transport is integrated.
 
 ### 1. Process Fixture (Create & Send)
 This command processes a Hermes fixture, creates a card entity, and sends it to a recipient.

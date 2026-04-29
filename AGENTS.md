@@ -15,7 +15,7 @@ feishu_messaging_card_builder/
 ├── README.md              # user-facing landing page
 ├── AGENTS.md              # agent/developer operating rules
 ├── src/                   # Python package source code
-├── tests/                 # core test suite (49 tests)
+├── tests/                 # core test suite (89+ tests)
 ├── docs/                  # direction, research, phase 1 decisions, standards
 ├── LICENSE
 └── .gitignore
@@ -36,7 +36,7 @@ feishu_messaging_card_builder/
 
 ## CURRENT PHASE
 
-- Phase 1: Minimal prototype implementation and validation.
+- Phase 1: Prototype completion with Phase 2 reliability hardening in closeout.
 - Verify core logic with `.venv/bin/python -m pytest`.
 - Explore new integration seams in `docs/hermes-outbound-seam-memo.md`.
 - Do not turn remaining open questions into implementation assumptions.
@@ -101,7 +101,7 @@ GIT_MASTER=1 git diff --check
 ## VALIDATION BEFORE FINISHING
 
 - Read `README.md` and relevant `docs/*.md` after edits.
-- Ensure all 49 tests pass via `.venv/bin/python -m pytest`.
+- Ensure all 89 tests pass via `.venv/bin/python -m pytest`.
 - Search for stale old-implementation references before finalizing.
 - Run `GIT_MASTER=1 git diff --check`.
 
