@@ -1,0 +1,71 @@
+{
+  "head": "c658d69",
+  "plans": {
+    "plan-2": {
+      "status": "PASS",
+      "scanned_files": [
+        ".sisyphus/evidence/plan-2/00-notes.md",
+        ".sisyphus/evidence/plan-2/01-doctor.txt",
+        ".sisyphus/evidence/plan-2/01-python-version.txt",
+        ".sisyphus/evidence/plan-2/01-secret-scan.txt",
+        ".sisyphus/evidence/plan-2/02-recipient-redacted.json",
+        ".sisyphus/evidence/plan-2/03-card-create-dry-run.txt",
+        ".sisyphus/evidence/plan-2/03-card-create-redacted.json",
+        ".sisyphus/evidence/plan-2/04-message-send-dry-run-redacted.txt",
+        ".sisyphus/evidence/plan-2/04-message-send-redacted.json",
+        ".sisyphus/evidence/plan-2/05-card-update-dry-run-redacted.txt",
+        ".sisyphus/evidence/plan-2/05-card-update-redacted.json",
+        ".sisyphus/evidence/plan-2/06-stale-sequence-redacted.json",
+        ".sisyphus/evidence/plan-2/07-contract-delta.md",
+        ".sisyphus/evidence/plan-2/08-pytest.txt",
+        ".sisyphus/evidence/plan-2/09-cli-help.txt",
+        ".sisyphus/evidence/plan-2/10-diff-check.txt",
+        ".sisyphus/evidence/plan-2/11-stale-reference-audit.txt",
+        ".sisyphus/evidence/plan-2/12-evidence-hygiene.txt"
+      ],
+      "issue_count": 0,
+      "issues": []
+    },
+    "plan-3": {
+      "status": "PASS",
+      "scanned_files": [
+        ".sisyphus/evidence/plan-3/task-1-contract-audit.txt",
+        ".sisyphus/evidence/plan-3/task-1-scope-guardrails.txt",
+        ".sisyphus/evidence/plan-3/task-2-image-key-redaction.txt",
+        ".sisyphus/evidence/plan-3/task-2-plan2-hygiene.json",
+        ".sisyphus/evidence/plan-3/task-3-rejected-first-send-retry.json",
+        ".sisyphus/evidence/plan-3/task-3-second-send-boundary.json",
+        ".sisyphus/evidence/plan-3/task-5-restart-safe-update.json",
+        ".sisyphus/evidence/plan-3/task-7-cli-diffcheck.txt",
+        ".sisyphus/evidence/plan-3/task-7-pytest-full.txt",
+        ".sisyphus/evidence/plan-3/task-8-closeout-audit.txt",
+        ".sisyphus/evidence/plan-3/task-8-final-hygiene.json"
+      ],
+      "issue_count": 0,
+      "issues": []
+    },
+    "plan-4": {
+      "status": "PASS",
+      "scanned_files": [
+        ".sisyphus/evidence/plan-4/task-1-contract-delta-audit.txt",
+        ".sisyphus/evidence/plan-4/task-1-scope-exclusion-audit.txt",
+        ".sisyphus/evidence/plan-4/task-2-changed-content-pending.txt",
+        ".sisyphus/evidence/plan-4/task-2-changed-content-states.txt",
+        ".sisyphus/evidence/plan-4/task-3-expired-inspect.json",
+        ".sisyphus/evidence/plan-4/task-3-expired-process.json",
+        ".sisyphus/evidence/plan-4/task-3-expiry-gate.txt",
+        ".sisyphus/evidence/plan-4/task-4-failure-redaction.txt",
+        ".sisyphus/evidence/plan-4/task-4-safe-inspect.json",
+        ".sisyphus/evidence/plan-4/task-5-live-placeholder.txt",
+        ".sisyphus/evidence/plan-4/task-5-retry-classifier.txt",
+        ".sisyphus/evidence/plan-4/task-7-closeout-index.md",
+        ".sisyphus/evidence/plan-4/task-7-final-commands.txt",
+        ".sisyphus/evidence/plan-4/task-7-final-hygiene.json",
+        ".sisyphus/evidence/plan-4/task-7-stale-ref-audit.txt"
+      ],
+      "issue_count": 0,
+      "issues": []
+    }
+  },
+  "overall_status": "PASS"
+}

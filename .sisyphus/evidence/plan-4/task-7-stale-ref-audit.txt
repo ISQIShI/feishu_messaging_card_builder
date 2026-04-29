@@ -1,0 +1,5 @@
+=== Stale Reference Audit (HEAD: c658d69) ===
+(clean)
+
+=== Scope Guardrails ===
+No forbidden surfaces

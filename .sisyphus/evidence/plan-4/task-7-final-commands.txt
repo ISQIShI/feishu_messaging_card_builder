@@ -1,0 +1,46 @@
+=== Pytest (HEAD: c658d69) ===
+$ .venv/bin/python -m pytest -p no:cacheprovider
+exit_code=0
+
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/zaixiaqishi/MyStorage/Project/feishu_messaging_card_builder
+configfile: pyproject.toml
+testpaths: tests
+collected 89 items
+
+tests/test_bridge_orchestration.py ..............                        [ 15%]
+tests/test_cli.py ..........                                             [ 26%]
+tests/test_failures.py ......................                            [ 51%]
+tests/test_feishu_client.py ......                                       [ 58%]
+tests/test_renderer.py ......                                            [ 65%]
+tests/test_scope_guards.py .....                                         [ 70%]
+tests/test_smoke.py ..                                                   [ 73%]
+tests/test_state.py ........................                             [100%]
+
+============================== 89 passed in 1.88s ==============================
+
+=== CLI Help ===
+$ .venv/bin/python -m feishu_messaging_card_builder.cli --help
+exit_code=0
+
+usage: feishu-messaging-card-builder [-h]
+                                     {process-fixture,update-card,inspect-state} ...
+
+Feishu Messaging Card Builder command line interface.
+
+positional arguments:
+  {process-fixture,update-card,inspect-state}
+    process-fixture     Process a Hermes final-reply fixture and write
+                        evidence.
+    update-card         Update a previously sent card and write evidence.
+    inspect-state       Inspect persisted bridge state as JSON.
+
+options:
+  -h, --help            show this help message and exit
+
+=== Git Diff Check ===
+$ GIT_MASTER=1 git diff --check
+exit_code=0
+
+
