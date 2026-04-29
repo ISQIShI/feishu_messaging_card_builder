@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import ast
+from datetime import datetime, timedelta, timezone
 import hashlib
 import inspect
 from pathlib import Path
+import sqlite3
 import tempfile
 from typing import cast
 
@@ -40,6 +42,57 @@ def manager_for_temp_db() -> tuple[BridgeStateManager, tempfile.TemporaryDirecto
     temp_dir = tempfile.TemporaryDirectory()
     manager = BridgeStateManager(str(Path(temp_dir.name) / "bridge.sqlite"))
     return manager, temp_dir
+
+
+def create_legacy_state_db(db_path: Path) -> None:
+    created_at = "2026-04-01T12:34:56+00:00"
+    updated_at = "2026-04-01T12:35:56+00:00"
+    with sqlite3.connect(db_path) as connection:
+        _ = connection.execute(
+            (
+                "CREATE TABLE card_deliveries ("
+                "bridge_message_id TEXT PRIMARY KEY, "
+                "source_platform TEXT NOT NULL, "
+                "session_key TEXT NOT NULL, "
+                "hermes_message_id TEXT, "
+                "final_reply_index INTEGER NOT NULL, "
+                "content_markdown TEXT NOT NULL, "
+                "content_hash TEXT NOT NULL, "
+                "card_id TEXT, "
+                "feishu_message_id TEXT, "
+                "sequence INTEGER DEFAULT 1, "
+                "status TEXT NOT NULL, "
+                "failure_reason TEXT, "
+                "created_at TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL"
+                ")"
+            )
+        )
+        _ = connection.execute(
+            (
+                "INSERT INTO card_deliveries ("
+                "bridge_message_id, source_platform, session_key, hermes_message_id, "
+                "final_reply_index, content_markdown, content_hash, card_id, feishu_message_id, "
+                "sequence, status, failure_reason, created_at, updated_at"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            ),
+            (
+                "feishu:legacy-session:legacy-hermes:3",
+                "feishu",
+                "legacy-session",
+                "legacy-hermes",
+                3,
+                "legacy markdown",
+                content_hash("legacy markdown"),
+                "card_legacy",
+                "om_legacy",
+                7,
+                Status.SENT.value,
+                None,
+                created_at,
+                updated_at,
+            ),
+        )
 
 
 def test_bridge_message_id_deterministic() -> None:
@@ -92,6 +145,8 @@ def test_duplicate_bridge_message_id_reuses_record() -> None:
         assert first_is_new is True
         assert second_is_new is False
         assert first_row["bridge_message_id"] == second_row["bridge_message_id"]
+        assert first_row["idempotency_key"] == first_row["bridge_message_id"]
+        assert first_row["version"] == 1
         assert first_row["created_at"] == second_row["created_at"]
     finally:
         temp_dir.cleanup()
@@ -152,6 +207,83 @@ def test_card_created_to_sent_transition() -> None:
         assert reloaded["card_id"] == "card_123"
         assert reloaded["feishu_message_id"] == "om_123"
         assert reloaded["sequence"] == 2
+        assert reloaded["version"] == 1
+    finally:
+        temp_dir.cleanup()
+
+
+def test_update_status_can_mutate_version() -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id="hermes-version")
+        hash_value = content_hash(fixture["content_markdown"])
+        record, _ = manager.get_or_create(fixture, hash_value)
+
+        manager.update_status(record["bridge_message_id"], Status.UPDATED, sequence=3, version=2)
+
+        reloaded = manager.get_record(record["bridge_message_id"])
+        assert reloaded is not None
+        assert reloaded["sequence"] == 3
+        assert reloaded["version"] == 2
+    finally:
+        temp_dir.cleanup()
+
+
+def test_migrates_legacy_schema_in_place(tmp_path: Path) -> None:
+    db_path = tmp_path / "legacy.sqlite"
+    create_legacy_state_db(db_path)
+
+    manager = BridgeStateManager(str(db_path))
+    records = manager.list_records()
+    assert len(records) == 1
+
+    with sqlite3.connect(db_path) as connection:
+        column_names = {
+            cast(str, row[1])
+            for row in cast(
+                list[tuple[object, ...]],
+                connection.execute("PRAGMA table_info(card_deliveries)").fetchall(),
+            )
+        }
+        row_count = cast(
+            int,
+            connection.execute("SELECT COUNT(*) FROM card_deliveries").fetchone()[0],
+        )
+
+    record = records[0]
+    expected_updatable_until = (
+        datetime.fromisoformat(record["created_at"]) + timedelta(days=14)
+    ).isoformat(timespec="seconds")
+    assert {"idempotency_key", "updatable_until", "version"}.issubset(column_names)
+    assert row_count == 1
+    assert record["bridge_message_id"] == "feishu:legacy-session:legacy-hermes:3"
+    assert record["idempotency_key"] == record["bridge_message_id"]
+    assert record["version"] == 7
+    assert record["sequence"] == 7
+    assert record["updatable_until"] == expected_updatable_until
+
+
+def test_updatable_window_helpers_reflect_expiry() -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id="hermes-expiry")
+        hash_value = content_hash(fixture["content_markdown"])
+        record, _ = manager.get_or_create(fixture, hash_value)
+        bridge_message_id = record["bridge_message_id"]
+
+        assert manager.is_updatable(bridge_message_id) is True
+        assert manager.is_expired(bridge_message_id) is False
+
+        expired_timestamp = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+        manager.update_status(bridge_message_id, Status.UPDATE_FAILED)
+        with sqlite3.connect(Path(temp_dir.name) / "bridge.sqlite") as connection:
+            _ = connection.execute(
+                "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+                (expired_timestamp, bridge_message_id),
+            )
+
+        assert manager.is_updatable(bridge_message_id) is False
+        assert manager.is_expired(bridge_message_id) is True
     finally:
         temp_dir.cleanup()
 

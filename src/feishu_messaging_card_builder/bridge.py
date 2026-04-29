@@ -140,6 +140,7 @@ class BridgeOrchestrator:
                 bridge_message_id,
                 Status.UPDATED,
                 sequence=new_sequence,
+                version=new_sequence,
                 failure_reason=None,
             )
         except FeishuApiError as exc:
@@ -230,6 +231,14 @@ class BridgeOrchestrator:
         recipient: str,
         call_count_before: int,
     ) -> ProcessResult:
+        self._state.update_status(
+            bridge_message_id,
+            Status.SEND_PENDING,
+            card_id=card_id,
+            sequence=sequence,
+            failure_reason=None,
+        )
+
         try:
             feishu_message_id = self._client.send_card(card_id, recipient)
         except FeishuApiError as exc:
@@ -255,6 +264,7 @@ class BridgeOrchestrator:
                 card_id=card_id,
                 feishu_message_id=feishu_message_id,
                 sequence=sequence,
+                version=sequence,
                 failure_reason=None,
             )
         except BridgeStateError:
@@ -269,6 +279,7 @@ class BridgeOrchestrator:
                     card_id=card_id,
                     feishu_message_id=feishu_message_id,
                     sequence=sequence,
+                    version=sequence,
                     failure_reason=recovery_instruction,
                 )
             except BridgeStateError as exc:
