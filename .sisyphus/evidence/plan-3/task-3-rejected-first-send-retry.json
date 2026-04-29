@@ -1,0 +1,45 @@
+{
+  "invalid_send": {
+    "ok": false,
+    "identity": "bot",
+    "error": {
+      "type": "api_error",
+      "code": 99992351,
+      "message": "API error: [99992351] The request you send is not a valid {open_id} or not exists, and the example value is {ou_da5****************dfe}. Invalid ids: [<redacted-invalid-open-id>] . Please see field_violations for details and refer to API documentation to correct accordingly and resubmit",
+      "detail": {
+        "field_violations": [
+          {
+            "description": "id not exist",
+            "field": "receive_id",
+            "value": "<redacted-invalid-open-id>"
+          }
+        ],
+        "log_id": "<redacted>",
+        "message": "Refer to the documentation to fix the error: https://open.feishu.cn/document/uAjLw4CM/ugTN1YjL4UTN24CO1UjN/trouble-shooting/how-to-obtain-openid",
+        "troubleshooter": "<redacted>"
+      }
+    }
+  },
+  "retry_send": {
+    "code": 0,
+    "data": {
+      "body": {
+        "content": "<redacted>"
+      },
+      "chat_id": "<redacted>",
+      "create_time": "1777462506885",
+      "deleted": false,
+      "message_id": "<redacted>",
+      "msg_type": "interactive",
+      "sender": {
+        "id": "<redacted>",
+        "id_type": "app_id",
+        "sender_type": "app",
+        "tenant_key": "<redacted>"
+      },
+      "update_time": "1777462506885",
+      "updated": false
+    },
+    "msg": "success"
+  }
+}

@@ -1,19 +1,11 @@
-=== legacy_template_send matches ===
-src/feishu_messaging_card_builder/feishu_client.py:32:_LEGACY_TEMPLATE_SEND_PATH: Final[str] = "legacy_template_send"
-src/feishu_messaging_card_builder/feishu_client.py:142:def _build_legacy_template_send_request(card_id: str, recipient: str) -> TransportRequest:  # pyright: ignore[reportUnusedFunction]
-docs/phase-1-live-validation.md:115:Phase 2 live validation using `lark-cli` has confirmed the official API shapes. The `legacy_template_send` path has been superseded by the `interactive` message type with a `card_id` payload.
-docs/phase-1-prototype-decisions.md:18:- **Legacy Template Send**: 否决使用 `legacy_template_send` 路径，Plan 2 实时验证确认该路径已被官方 IM `interactive` 消息路径取代。
+=== stale-reference-audit against b7a1ff8 ===
 
-=== template_id matches in active code ===
-src/feishu_messaging_card_builder/feishu_client.py:156:                "template_id": card_id,
+=== legacy_template_send in src/ ===
+(none — clean)
 
-=== --live-feishu references ===
-docs/phase-1-live-validation.md:4:> **Project CLI `--live-feishu` remains unimplemented.** Running commands with `--live-feishu` will produce a message indicating it is not yet available. Live validation for Phase 1 was performed using `lark-cli` to verify API contracts. Evidence of these runs is stored in `.sisyphus/evidence/plan-2/`.
-docs/phase-1-live-validation.md:83:The `--live-feishu` flag is reserved for future implementation. Currently, the CLI will reject this flag with a message indicating it is unimplemented. The commands below represent the target CLI behavior once live transport is integrated.
-docs/phase-1-live-validation.md:91:  --live-feishu \
-docs/phase-1-live-validation.md:102:  --live-feishu \
+=== template_id in src/ ===
+(none — clean)
 
 === audit summary ===
-OK: legacy_template_send remains only in a private deprecated helper and historical decision/validation docs; no active public send path uses it.
-OK: template_id appears only inside the private deprecated helper _build_legacy_template_send_request and not in the active public API path.
-OK: all --live-feishu references state it is unimplemented or reserved for future live transport, with gating by FEISHU_APP_ID/FEISHU_APP_SECRET before network use.
+OK: no stale legacy_template_send reference remains in src/.
+OK: no template_id reference remains in src/.
