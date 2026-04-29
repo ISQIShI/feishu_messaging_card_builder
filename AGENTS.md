@@ -37,7 +37,7 @@ feishu_messaging_card_builder/
 ## CURRENT PHASE
 
 - Phase 1: Minimal prototype implementation and validation.
-- Verify core logic with `python -m pytest`.
+- Verify core logic with `.venv/bin/python -m pytest`.
 - Explore new integration seams in `docs/hermes-outbound-seam-memo.md`.
 - Do not turn remaining open questions into implementation assumptions.
 
@@ -80,13 +80,13 @@ Put those in `AGENTS.md`, `docs/AGENTS.md`, or the focused docs under `docs/`.
 
 ```bash
 # Core logic validation
-python -m pytest
+.venv/bin/python -m pytest
 
 # Git cleanliness validation
 GIT_MASTER=1 git diff --check
 
 # CLI help check
-python -m feishu_messaging_card_builder.cli --help
+.venv/bin/python -m feishu_messaging_card_builder.cli --help
 ```
 
 ## GIT RULES
@@ -101,7 +101,7 @@ python -m feishu_messaging_card_builder.cli --help
 ## VALIDATION BEFORE FINISHING
 
 - Read `README.md` and relevant `docs/*.md` after edits.
-- Ensure all 49 tests pass via `python -m pytest`.
+- Ensure all 49 tests pass via `.venv/bin/python -m pytest`.
 - Search for stale old-implementation references before finalizing.
 - Run `GIT_MASTER=1 git diff --check`.
 

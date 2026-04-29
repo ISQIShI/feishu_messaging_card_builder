@@ -4,7 +4,7 @@
 
 ## Scope (范围)
 
-- **Package Form**: Python 库 + 命令行工具 (`python -m feishu_messaging_card_builder.cli`)。
+- **Package Form**: Python 库 + 命令行工具 (`.venv/bin/python -m feishu_messaging_card_builder.cli`)。
 - **Final Replies Only**: 仅处理 Hermes 的最终回复消息。不处理中间推理状态、流式输出、工具调用过程或后台日志。
 - **One Card Per Final Reply**: 每条 Hermes 最终回复对应且仅对应一个飞书卡片实体。
 - **Websocket-only**: 仅支持 Hermes 的 Feishu/Lark websocket 连接模式。
@@ -29,6 +29,7 @@
 - **Full-card Replacement**: 更新时采取全量替换模式，不进行增量组件差异对比（diffing）。
 - **Sequence-based Update**: 基于自增序列或时间戳确保更新顺序，避免旧版本覆盖新版本。
 - **Update Envelope**: 更新请求体必须将卡片内容包裹在 `card` 键下：`{"card": {"type": "card_json", "data": "..."}, ...}` (Plan 2 实时验证确认)。
+- **Reliability Policy**: Plan 3 强化了最小可靠性契约，明确了 card_id 的单次发送边界以及在未被接受前的显式重试策略。
 
 ## Send Path (发送路径)
 

@@ -9,12 +9,12 @@ Live validation was performed to confirm that the generated payloads and interac
 
 ## Confirmed API Contracts
 
-Based on live evidence in `.sisyphus/evidence/plan-2/07-contract-delta.md`:
+Based on live evidence in `.sisyphus/evidence/plan-2/07-contract-delta.md` and Plan 3 findings:
 
 ### 1. Create Card Entity
 - **Endpoint**: `POST /open-apis/cardkit/v1/cards`
 - **Body**: `{"type":"card_json", "data":"..."}`
-- **Note**: Confirmed correct. Returns a `card_id`.
+- **Note**: Confirmed correct. Returns a `card_id`. Plan 3 live validation confirmed card_id single-send boundary and explicit pre-acceptance rejection retry behavior.
 
 ### 2. Send Message by card_id
 - **Endpoint**: `POST /open-apis/im/v1/messages?receive_id_type=open_id`
@@ -86,7 +86,7 @@ The `--live-feishu` flag is reserved for future implementation. Currently, the C
 This command processes a Hermes fixture, creates a card entity, and sends it to a recipient.
 
 ```bash
-python -m feishu_messaging_card_builder.cli process-fixture tests/fixtures/hermes_final_reply.json \
+.venv/bin/python -m feishu_messaging_card_builder.cli process-fixture tests/fixtures/hermes_final_reply.json \
   --db .fmcb/live.sqlite \
   --live-feishu \
   --recipient <YOUR_OPEN_ID> \
@@ -97,7 +97,7 @@ python -m feishu_messaging_card_builder.cli process-fixture tests/fixtures/herme
 This command updates an existing card message by its bridge message ID.
 
 ```bash
-python -m feishu_messaging_card_builder.cli update-card <BRIDGE_MSG_ID> \
+.venv/bin/python -m feishu_messaging_card_builder.cli update-card <BRIDGE_MSG_ID> \
   --db .fmcb/live.sqlite \
   --live-feishu \
   --evidence live-update-evidence.json
@@ -107,7 +107,7 @@ python -m feishu_messaging_card_builder.cli update-card <BRIDGE_MSG_ID> \
 Check the local records of live interactions.
 
 ```bash
-python -m feishu_messaging_card_builder.cli inspect-state --db .fmcb/live.sqlite
+.venv/bin/python -m feishu_messaging_card_builder.cli inspect-state --db .fmcb/live.sqlite
 ```
 
 ## Payload-Proof Note

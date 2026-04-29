@@ -30,12 +30,12 @@
 
 ### 运行测试
 ```bash
-python -m pytest
+.venv/bin/python -m pytest
 ```
 
 ### 使用 CLI
 ```bash
-python -m feishu_messaging_card_builder.cli --help
+.venv/bin/python -m feishu_messaging_card_builder.cli --help
 ```
 
 ## 权威资料
