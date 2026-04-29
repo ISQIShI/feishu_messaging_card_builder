@@ -10,8 +10,7 @@ from pathlib import Path
 
 from .bridge import BridgeOrchestrationError, BridgeOrchestrator
 from .feishu_client import FeishuCardClient, LIVE_REQUIRED_ENV, MockFeishuTransport
-from .parser import parse_final_reply
-from .state import BridgeRecord, BridgeStateManager
+from .state import BridgeStateManager
 
 
 DEFAULT_DB_PATH = ".fmcb/bridge.sqlite"
@@ -65,19 +64,6 @@ def _write_json(path: str | Path, payload: object) -> None:
     _ = target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _prime_update_cache(orchestrator: BridgeOrchestrator, record: BridgeRecord) -> None:
-    parsed = parse_final_reply(
-        {
-            "source_platform": record["source_platform"],
-            "session_key": record["session_key"],
-            "hermes_message_id": record["hermes_message_id"],
-            "final_reply_index": record["final_reply_index"],
-            "content_markdown": record["content_markdown"],
-        }
-    )
-    orchestrator.cache_parsed_reply(record["bridge_message_id"], parsed)
-
-
 def _process_fixture_command(args: argparse.Namespace) -> int:
     typed_args = cast(CLIArgs, cast(object, args))
     if not _ensure_live_guard(typed_args.live_feishu):
@@ -114,9 +100,6 @@ def _update_card_command(args: argparse.Namespace) -> int:
     record = state.get_record(typed_args.bridge_message_id)
     if record is None:
         raise BridgeOrchestrationError(f"No bridge record found for {typed_args.bridge_message_id}")
-
-    if not orchestrator.has_cached_parsed_reply(typed_args.bridge_message_id):
-        _prime_update_cache(orchestrator, record)
 
     result = orchestrator.update_card(typed_args.bridge_message_id)
     evidence = {

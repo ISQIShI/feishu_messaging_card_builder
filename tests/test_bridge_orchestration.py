@@ -83,6 +83,40 @@ def configure_fail_first_send(transport: MockFeishuTransport) -> None:
     object.__setattr__(transport, "record_send", fail_first_send)
 
 
+def configure_explicit_rejection_first_send(transport: MockFeishuTransport) -> None:
+    original_send = transport.record_send
+    did_fail_send = False
+
+    def reject_first_send(card_id: str, recipient: str) -> JSONDict:
+        nonlocal did_fail_send
+        if not did_fail_send:
+            did_fail_send = True
+            request = build_card_entity_send_request(card_id, recipient)
+            error_response: JSONDict = {
+                "code": 230020,
+                "msg": "invalid receive_id",
+                "status_code": 400,
+            }
+            params = request.get("params")
+            transport.calls.append(
+                {
+                    "method": request["method"],
+                    "path": request["path"],
+                    "params": params,
+                    "body": request["body"],
+                    "response": error_response,
+                }
+            )
+            raise FeishuApiError(
+                "Mock Feishu send rejected before acceptance",
+                status_code=400,
+                response=error_response,
+            )
+        return original_send(card_id, recipient)
+
+    object.__setattr__(transport, "record_send", reject_first_send)
+
+
 def configure_fail_first_sent_persist(state: BridgeStateManager) -> None:
     original_update_status = state.update_status
     did_fail_sent_update = False
@@ -163,6 +197,7 @@ def test_update_card_happy_path() -> None:
         assert record is not None
         assert record["status"] == Status.UPDATED.value
         assert record["sequence"] == 2
+        assert record["version"] == 2
     finally:
         temp_dir.cleanup()
 
@@ -187,7 +222,7 @@ def test_duplicate_replay_creates_no_second_card() -> None:
         temp_dir.cleanup()
 
 
-def test_create_success_send_failure_reuses_card_on_retry() -> None:
+def test_create_success_send_failure_requires_reconciliation_on_retry() -> None:
     temp_dir = tempfile.TemporaryDirectory()
     try:
         transport = MockFeishuTransport()
@@ -208,12 +243,61 @@ def test_create_success_send_failure_reuses_card_on_retry() -> None:
         assert failed_record["status"] == Status.SEND_FAILED.value
         assert failed_record["card_id"] == exc_info.value.card_id
         assert retry_result.card_id == exc_info.value.card_id
+        assert retry_result.status == Status.RECONCILIATION_REQUIRED.value
+        assert retry_result.recovery_instruction is not None
+        assert retry_result.mock_calls == []
+        assert len(create_calls) == 1
+        assert len(send_calls) == 1
+        assert retried_record is not None
+        assert retried_record["status"] == Status.RECONCILIATION_REQUIRED.value
+    finally:
+        temp_dir.cleanup()
+
+
+def test_explicit_rejection_allows_retry() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        transport = MockFeishuTransport()
+        configure_explicit_rejection_first_send(transport)
+        orchestrator, state, _transport = build_orchestrator(temp_dir, transport=transport)
+
+        with pytest.raises(BridgeOrchestrationError) as exc_info:
+            _ = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:invalid")
+
+        retry_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:valid")
+        retried_record = state.get_record(retry_result.bridge_message_id)
+        create_calls = [call for call in transport.calls if call["path"] == "/open-apis/cardkit/v1/cards"]
+        send_calls = [call for call in transport.calls if call["path"] == "/open-apis/im/v1/messages"]
+
+        assert exc_info.value.card_id is not None
+        assert retry_result.card_id == exc_info.value.card_id
         assert retry_result.status == Status.SENT.value
-        assert len(retry_result.mock_calls) == 1
         assert len(create_calls) == 1
         assert len(send_calls) == 2
         assert retried_record is not None
         assert retried_record["status"] == Status.SENT.value
+    finally:
+        temp_dir.cleanup()
+
+
+def test_restart_safe_update() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        db_path = str(Path(temp_dir.name) / "bridge.sqlite")
+        first_orchestrator = BridgeOrchestrator(BridgeStateManager(db_path), client=_build_client(MockFeishuTransport()))
+        process_result = first_orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:restart")
+
+        second_transport = MockFeishuTransport()
+        second_orchestrator = BridgeOrchestrator(BridgeStateManager(db_path), client=_build_client(second_transport))
+        update_result = second_orchestrator.update_card(process_result.bridge_message_id)
+        record = second_orchestrator.get_bridge_messages()[0]
+
+        assert update_result.status == Status.UPDATED.value
+        assert update_result.new_sequence == 2
+        assert len(second_transport.calls) == 1
+        assert second_transport.calls[0]["method"] == "PUT"
+        assert record["status"] == Status.UPDATED.value
+        assert record["version"] == 2
     finally:
         temp_dir.cleanup()
 

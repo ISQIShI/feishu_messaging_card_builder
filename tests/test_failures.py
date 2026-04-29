@@ -70,6 +70,39 @@ def configure_fail_first_send(transport: MockFeishuTransport) -> None:
     object.__setattr__(transport, "record_send", fail_first_send)
 
 
+def configure_explicit_rejection_first_send(transport: MockFeishuTransport) -> None:
+    original_send = transport.record_send
+    did_fail_send = False
+
+    def reject_first_send(card_id: str, recipient: str) -> JSONDict:
+        nonlocal did_fail_send
+        if not did_fail_send:
+            did_fail_send = True
+            request = build_card_entity_send_request(card_id, recipient)
+            error_response = cast(
+                JSONDict,
+                {"code": 230020, "msg": "invalid receive_id", "status_code": 400},
+            )
+            params = request.get("params")
+            transport.calls.append(
+                {
+                    "method": request["method"],
+                    "path": request["path"],
+                    "params": params,
+                    "body": request["body"],
+                    "response": error_response,
+                }
+            )
+            raise FeishuApiError(
+                "Mock Feishu send rejected before acceptance",
+                status_code=400,
+                response=error_response,
+            )
+        return original_send(card_id, recipient)
+
+    object.__setattr__(transport, "record_send", reject_first_send)
+
+
 def configure_fail_first_sent_persist(state: BridgeStateManager) -> None:
     original_update_status = state.update_status
     did_fail_sent_update = False
@@ -129,7 +162,7 @@ def test_duplicate_replay_is_fully_idempotent(tmp_path: Path) -> None:
     assert transport.calls == calls_after_first
 
 
-def test_create_success_send_failure_preserves_card_id(tmp_path: Path) -> None:
+def test_ambiguous_failure_no_longer_retries(tmp_path: Path) -> None:
     transport = MockFeishuTransport()
     configure_fail_first_send(transport)
     orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
@@ -151,6 +184,29 @@ def test_create_success_send_failure_preserves_card_id(tmp_path: Path) -> None:
     assert len(create_calls_after_failure) == 1
     assert retry_result.card_id == exc_info.value.card_id
     assert retry_result.is_duplicate is False
+    assert retry_result.status == Status.RECONCILIATION_REQUIRED.value
+    assert retry_result.recovery_instruction is not None
+    assert len(create_calls) == 1
+    assert len(send_calls) == 1
+    assert retried_record is not None
+    assert retried_record["status"] == Status.RECONCILIATION_REQUIRED.value
+
+
+def test_explicit_rejection_allows_retry(tmp_path: Path) -> None:
+    transport = MockFeishuTransport()
+    configure_explicit_rejection_first_send(transport)
+    orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    with pytest.raises(BridgeOrchestrationError) as exc_info:
+        _ = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:invalid")
+
+    retry_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:valid")
+    retried_record = state.get_record(retry_result.bridge_message_id)
+    create_calls = [call for call in transport.calls if call["path"] == "/open-apis/cardkit/v1/cards"]
+    send_calls = [call for call in transport.calls if call["path"] == "/open-apis/im/v1/messages"]
+
+    assert exc_info.value.card_id is not None
+    assert retry_result.card_id == exc_info.value.card_id
     assert retry_result.status == Status.SENT.value
     assert len(create_calls) == 1
     assert len(send_calls) == 2
@@ -211,3 +267,19 @@ def test_expired_non_updatable_mock_entity_marks_update_failed(tmp_path: Path) -
     assert record is not None
     assert record["status"] == Status.UPDATE_FAILED.value
     assert record["card_id"] == process_result.card_id
+
+
+def test_failed_update_does_not_advance_version(tmp_path: Path) -> None:
+    transport = MockFeishuTransport(failure_status_codes={"update": 410})
+    orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    process_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:version")
+
+    with pytest.raises(BridgeOrchestrationError, match="Feishu update failed"):
+        _ = orchestrator.update_card(process_result.bridge_message_id)
+
+    record = state.get_record(process_result.bridge_message_id)
+    assert record is not None
+    assert record["status"] == Status.UPDATE_FAILED.value
+    assert record["sequence"] == 1
+    assert record["version"] == 1

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import cast, final
 import uuid as uuid_module
 
@@ -14,6 +15,16 @@ from .renderer import render_card_json
 from .state import BridgeRecord, BridgeStateError, BridgeStateManager, DeliveryFixture, Status
 
 UPDATE_MARKER = "\n\n> Updated by Phase 1 prototype"
+_EXPLICIT_REJECTION_PATTERNS = (
+    "invalid receive_id",
+    "receive_id is invalid",
+    "invalid recipient",
+    "invalid user",
+    "user not found",
+    "invalid open_id",
+    "open_id is invalid",
+    "invalid chat_id",
+)
 
 
 @dataclass(slots=True)
@@ -85,12 +96,17 @@ class BridgeOrchestrator:
         if not is_new:
             if record["status"] in {Status.SENT.value, Status.UPDATED.value}:
                 return self._duplicate_result(record)
+            if record["status"] == Status.RECONCILIATION_REQUIRED.value:
+                return self._reconciliation_result(record)
             if record["card_id"] and record["status"] in {
                 Status.CARD_CREATED.value,
-                Status.SEND_FAILED.value,
                 Status.SEND_PENDING.value,
             }:
                 return self._send_existing_card(record, recipient)
+            if record["card_id"] and record["status"] == Status.SEND_FAILED.value:
+                if self.is_explicit_pre_acceptance_rejection(record["failure_reason"]):
+                    return self._send_existing_card(record, recipient)
+                return self._reconciliation_required_for_ambiguous_send(record)
 
         return self._create_and_send_card(record, parsed, recipient)
 
@@ -118,18 +134,10 @@ class BridgeOrchestrator:
                 status=record["status"],
             )
 
-        parsed = self._parsed_cache.get(bridge_message_id)
-        if parsed is None:
-            raise BridgeOrchestrationError(
-                f"Original parsed payload is unavailable for {bridge_message_id}",
-                bridge_message_id=bridge_message_id,
-                card_id=card_id,
-                status=record["status"],
-            )
-
+        parsed = self._rebuild_parsed_reply_from_record(record)
         updated_parsed = self._updated_parsed_reply(parsed)
         updated_card_json = self._render_transport_card_json(updated_parsed)
-        previous_sequence = int(record["sequence"])
+        previous_sequence = int(record["version"])
         new_sequence = previous_sequence + 1
         request_uuid = uuid_module.uuid4().hex
         call_count_before = self._mock_call_count()
@@ -147,8 +155,7 @@ class BridgeOrchestrator:
             self._state.update_status(
                 bridge_message_id,
                 Status.UPDATE_FAILED,
-                sequence=new_sequence,
-                failure_reason=str(exc),
+                failure_reason=self._format_feishu_error_reason(exc),
             )
             raise BridgeOrchestrationError(
                 f"Feishu update failed for {bridge_message_id}",
@@ -247,7 +254,7 @@ class BridgeOrchestrator:
                 Status.SEND_FAILED,
                 card_id=card_id,
                 sequence=sequence,
-                failure_reason=str(exc),
+                failure_reason=self._format_feishu_error_reason(exc),
             )
             raise BridgeOrchestrationError(
                 f"Feishu send failed for {bridge_message_id}; retry with the preserved card_id",
@@ -325,6 +332,42 @@ class BridgeOrchestrator:
             recovery_instruction=None,
         )
 
+    def _reconciliation_required_for_ambiguous_send(self, record: BridgeRecord) -> ProcessResult:
+        recovery_instruction = (
+            "Previous send attempt failed after card creation, but the failure was not an explicit "
+            "pre-acceptance rejection. Do not resend this card_id blindly; reconcile remote delivery "
+            "state before retrying."
+        )
+        self._state.update_status(
+            record["bridge_message_id"],
+            Status.RECONCILIATION_REQUIRED,
+            card_id=record["card_id"],
+            sequence=int(record["sequence"]),
+            failure_reason=recovery_instruction,
+        )
+        return ProcessResult(
+            bridge_message_id=record["bridge_message_id"],
+            card_id=record["card_id"],
+            feishu_message_id=record["feishu_message_id"],
+            sequence=int(record["sequence"]),
+            status=Status.RECONCILIATION_REQUIRED.value,
+            is_duplicate=False,
+            mock_calls=[],
+            recovery_instruction=recovery_instruction,
+        )
+
+    def _reconciliation_result(self, record: BridgeRecord) -> ProcessResult:
+        return ProcessResult(
+            bridge_message_id=record["bridge_message_id"],
+            card_id=record["card_id"],
+            feishu_message_id=record["feishu_message_id"],
+            sequence=int(record["sequence"]),
+            status=Status.RECONCILIATION_REQUIRED.value,
+            is_duplicate=False,
+            mock_calls=[],
+            recovery_instruction=record["failure_reason"],
+        )
+
     @staticmethod
     def _content_hash(content_markdown: str) -> str:
         return hashlib.sha256(content_markdown.encode("utf-8")).hexdigest()
@@ -350,6 +393,19 @@ class BridgeOrchestrator:
         path = Path(fixture_path)
         return cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
 
+    @classmethod
+    def is_explicit_pre_acceptance_rejection(cls, failure_reason: str | None) -> bool:
+        if not failure_reason:
+            return False
+
+        lowered = failure_reason.lower()
+        if "code=0" in lowered or '"code": 0' in lowered:
+            return False
+
+        has_non_zero_code = re.search(r"\bcode\s*[:=]\s*(?!0\b)\d+", lowered) is not None
+        has_validation_pattern = any(pattern in lowered for pattern in _EXPLICIT_REJECTION_PATTERNS)
+        return has_validation_pattern and has_non_zero_code
+
     def _mock_call_count(self) -> int:
         transport = getattr(self._client, "_transport", None)
         maybe_calls = getattr(transport, "calls", None)
@@ -369,6 +425,30 @@ class BridgeOrchestrator:
     @staticmethod
     def _render_transport_card_json(parsed: ParsedFinalReply) -> JSONDict:
         return cast(JSONDict, cast(object, render_card_json(parsed)))
+
+    @staticmethod
+    def _format_feishu_error_reason(exc: FeishuApiError) -> str:
+        details: list[str] = [str(exc), f"status_code={exc.status_code}"]
+        for key in ("code", "msg", "message", "error", "error_message", "error_msg"):
+            value = exc.response.get(key)
+            if value in (None, ""):
+                continue
+            details.append(f"{key}={value}")
+        if exc.response:
+            details.append(f"response={json.dumps(exc.response, ensure_ascii=False, sort_keys=True)}")
+        return "; ".join(details)
+
+    @staticmethod
+    def _rebuild_parsed_reply_from_record(record: BridgeRecord) -> ParsedFinalReply:
+        return parse_final_reply(
+            {
+                "source_platform": record["source_platform"],
+                "session_key": record["session_key"],
+                "hermes_message_id": record["hermes_message_id"],
+                "final_reply_index": record["final_reply_index"],
+                "content_markdown": record["content_markdown"],
+            }
+        )
 
     @staticmethod
     def _updated_parsed_reply(parsed: ParsedFinalReply) -> ParsedFinalReply:
