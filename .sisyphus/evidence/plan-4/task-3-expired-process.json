@@ -1,0 +1,37 @@
+{
+  "bridge_message_id": "feishu:sess-001:hermes-msg-0001:1",
+  "card_id": "mock-card-8cda259c",
+  "feishu_message_id": "mock-msg-8c353916",
+  "sequence": 1,
+  "status": "sent",
+  "mock_calls": [
+    {
+      "method": "POST",
+      "path": "/open-apis/cardkit/v1/cards",
+      "body": {
+        "type": "card_json",
+        "data": "{\"body\":{\"elements\":[{\"content\":\"Hermes completed the request and prepared the final reply.\\n\\nHighlights:\\n- Confirmed websocket-only delivery scope\\n- Kept the card entity lifecycle intact\\n- Preserved deterministic update behavior\\n\\n```python\\ndef summarize(items: list[str]) -> str:\\n    return ' / '.join(items)\\n```\",\"element_id\":\"e8a02edcf6c4d19a\",\"tag\":\"markdown\"}]},\"config\":{\"update_multi\":true},\"header\":{\"title\":{\"content\":\"Reply from feishu session sess-001\",\"tag\":\"plain_text\"}},\"schema\":\"2.0\"}"
+      },
+      "response": {
+        "card_id": "mock-card-8cda259c"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/open-apis/im/v1/messages",
+      "body": {
+        "receive_id": "mock-open-id",
+        "msg_type": "interactive",
+        "content": "{\"type\":\"card\",\"data\":{\"card_id\":\"mock-card-8cda259c\"}}"
+      },
+      "response": {
+        "message_id": "mock-msg-8c353916"
+      },
+      "params": {
+        "receive_id_type": "open_id"
+      }
+    }
+  ],
+  "recovery_instruction": null,
+  "live": false
+}

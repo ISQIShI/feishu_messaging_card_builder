@@ -1,0 +1,2 @@
+Verified failure persistence now stores a typed error class, HTTP status code, and redacted summary only.
+inspect-state default output hides raw IDs, content, and transport/debug fields; raw mode remains available for local debugging only.

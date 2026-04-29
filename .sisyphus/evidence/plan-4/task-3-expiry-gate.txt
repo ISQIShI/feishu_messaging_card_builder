@@ -1,0 +1,10 @@
+{
+  "bridge_message_id": "feishu:sess-001:hermes-msg-0001:1",
+  "card_id": "mock-card-8cda259c",
+  "status_after_update_attempt": "expired",
+  "previous_sequence": 1,
+  "new_sequence": 1,
+  "put_call_count": 0,
+  "persisted_status": "expired",
+  "persisted_version": 1
+}

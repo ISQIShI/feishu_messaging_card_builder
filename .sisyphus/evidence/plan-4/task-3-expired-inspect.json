@@ -1,0 +1,19 @@
+{
+  "bridge_message_id": "feishu:sess-001:hermes-msg-0001:1",
+  "idempotency_key": "feishu:sess-001:hermes-msg-0001:1",
+  "source_platform": "feishu",
+  "session_key": "sess-001",
+  "hermes_message_id": "hermes-msg-0001",
+  "final_reply_index": 1,
+  "content_markdown": "Hermes completed the request and prepared the final reply.\n\nHighlights:\n- Confirmed websocket-only delivery scope\n- Kept the card entity lifecycle intact\n- Preserved deterministic update behavior\n\n```python\ndef summarize(items: list[str]) -> str:\n    return ' / '.join(items)\n```",
+  "content_hash": "8a02edcf6c4d19a5b7024a503a45e7c65df6a56b471a2011a1b2cdb5115f9174",
+  "card_id": "mock-card-8cda259c",
+  "feishu_message_id": "mock-msg-8c353916",
+  "sequence": 1,
+  "version": 1,
+  "status": "expired",
+  "failure_reason": null,
+  "created_at": "2026-04-29T14:29:02+00:00",
+  "updatable_until": "2026-04-28T14:29:02+00:00",
+  "updated_at": "2026-04-29T14:29:02+00:00"
+}
