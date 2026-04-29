@@ -1,0 +1,25 @@
+{
+  "bridge_message_id": "feishu:sess-001:hermes-msg-0001:1",
+  "previous_sequence": 1,
+  "new_sequence": 2,
+  "status": "updated",
+  "mock_calls": [
+    {
+      "method": "PUT",
+      "path": "/open-apis/cardkit/v1/cards/mock-card-8cda259c",
+      "body": {
+        "card": {
+          "type": "card_json",
+          "data": "{\"body\":{\"elements\":[{\"content\":\"Hermes completed the request and prepared the final reply.\\n\\nHighlights:\\n- Confirmed websocket-only delivery scope\\n- Kept the card entity lifecycle intact\\n- Preserved deterministic update behavior\\n\\n```python\\ndef summarize(items: list[str]) -> str:\\n    return ' / '.join(items)\\n```\\n\\n> Updated by Phase 1 prototype\",\"element_id\":\"efc0a18831b48c51\",\"tag\":\"markdown\"}]},\"config\":{\"update_multi\":true},\"header\":{\"title\":{\"content\":\"Reply from feishu session sess-001\",\"tag\":\"plain_text\"}},\"schema\":\"2.0\"}"
+        },
+        "sequence": 2,
+        "uuid": "2147053b1e5b42b4ad4fda8a0081b6f2"
+      },
+      "response": {
+        "success": true
+      }
+    }
+  ],
+  "live": false,
+  "verification": "Restart-safe update: PASSED"
+}

@@ -1,0 +1,15 @@
+usage: feishu-messaging-card-builder [-h]
+                                     {process-fixture,update-card,inspect-state} ...
+
+Feishu Messaging Card Builder command line interface.
+
+positional arguments:
+  {process-fixture,update-card,inspect-state}
+    process-fixture     Process a Hermes final-reply fixture and write
+                        evidence.
+    update-card         Update a previously sent card and write evidence.
+    inspect-state       Inspect persisted bridge state as JSON.
+
+options:
+  -h, --help            show this help message and exit
+---
