@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from collections.abc import Sequence
 from typing import Protocol, cast
 from pathlib import Path
 
 from .bridge import BridgeOrchestrationError, BridgeOrchestrator
-from .feishu_client import FeishuCardClient, LIVE_REQUIRED_ENV, MockFeishuTransport
+from .feishu_client import FeishuCardClient, MockFeishuTransport
 from .state import BridgeStateManager
 
 
@@ -31,22 +30,11 @@ class CLIArgs(Protocol):
     bridge_message_id: str
 
 
-def _missing_live_env_vars() -> list[str]:
-    return [name for name in LIVE_REQUIRED_ENV if not os.getenv(name)]
-
-
 def _ensure_live_guard(live_feishu: bool) -> bool:
     if not live_feishu:
         return True
 
-    missing = _missing_live_env_vars()
-    if missing:
-        print(
-            f"Missing required env vars for --live-feishu: {', '.join(missing)}",
-            file=sys.stderr,
-        )
-        return False
-
+    print("Live Feishu transport is not yet implemented", file=sys.stderr)
     return True
 
 
@@ -94,7 +82,6 @@ def _process_fixture_command(args: argparse.Namespace) -> int:
     if not _ensure_live_guard(typed_args.live_feishu):
         return 1
     if typed_args.live_feishu:
-        print("Live Feishu transport is not yet implemented", file=sys.stderr)
         return 1
 
     _state, _transport, _client, orchestrator = _build_stack(typed_args.db)
@@ -118,7 +105,6 @@ def _update_card_command(args: argparse.Namespace) -> int:
     if not _ensure_live_guard(typed_args.live_feishu):
         return 1
     if typed_args.live_feishu:
-        print("Live Feishu transport is not yet implemented", file=sys.stderr)
         return 1
 
     state, _transport, _client, orchestrator = _build_stack(typed_args.db)

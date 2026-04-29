@@ -225,6 +225,47 @@ def test_explicit_rejection_allows_retry(tmp_path: Path) -> None:
     assert retried_record["status"] == Status.SENT.value
 
 
+@pytest.mark.parametrize(
+    ("failure_reason", "expected"),
+    [
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=invalid receive_id",
+            True,
+        ),
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=receive_id is invalid",
+            True,
+        ),
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=invalid open_id",
+            True,
+        ),
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=invalid chat_id",
+            False,
+        ),
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=invalid recipient",
+            False,
+        ),
+        (
+            "FeishuApiError; status_code=400; summary=code=230020; msg=generic bad request",
+            False,
+        ),
+        ("FeishuApiError; status_code=503; summary=error=timeout", False),
+        ("FeishuApiError; status_code=500; summary=error=upstream unavailable", False),
+        ("FeishuApiError; status_code=400; summary=msg=invalid receive_id", False),
+        ('FeishuApiError; status_code=400; summary={"code": 0, "msg": "invalid receive_id"}', False),
+        (None, False),
+    ],
+)
+def test_explicit_pre_acceptance_rejection_classifier(
+    failure_reason: str | None,
+    expected: bool,
+) -> None:
+    assert BridgeOrchestrator.is_explicit_pre_acceptance_rejection(failure_reason) is expected
+
+
 def test_send_success_persist_fail_triggers_reconciliation(tmp_path: Path) -> None:
     state = BridgeStateManager(str(tmp_path / "bridge.sqlite"))
     configure_fail_first_sent_persist(state)
@@ -322,5 +363,22 @@ def test_failed_update_does_not_advance_version(tmp_path: Path) -> None:
     record = state.get_record(process_result.bridge_message_id)
     assert record is not None
     assert record["status"] == Status.UPDATE_FAILED.value
+    assert record["sequence"] == 1
+    assert record["version"] == 1
+
+
+def test_ambiguous_update_failure_requires_reconciliation(tmp_path: Path) -> None:
+    transport = MockFeishuTransport(failure_status_codes={"update": 503})
+    orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    process_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:ambiguous-update")
+
+    with pytest.raises(BridgeOrchestrationError, match="Feishu update failed") as exc_info:
+        _ = orchestrator.update_card(process_result.bridge_message_id)
+
+    record = state.get_record(process_result.bridge_message_id)
+    assert exc_info.value.status == Status.RECONCILIATION_REQUIRED.value
+    assert record is not None
+    assert record["status"] == Status.RECONCILIATION_REQUIRED.value
     assert record["sequence"] == 1
     assert record["version"] == 1

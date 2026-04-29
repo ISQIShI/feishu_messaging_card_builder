@@ -83,7 +83,7 @@ def test_update_card_after_process(tmp_path: Path) -> None:
     assert payload["new_sequence"] == 2
 
 
-def test_live_feishu_guard_blocks_without_env(tmp_path: Path) -> None:
+def test_live_feishu_placeholder_blocks_without_env(tmp_path: Path) -> None:
     db_path = tmp_path / "bridge.sqlite"
     evidence = tmp_path / "guard.json"
 
@@ -99,7 +99,26 @@ def test_live_feishu_guard_blocks_without_env(tmp_path: Path) -> None:
     )
 
     assert result.returncode != 0
-    assert "Missing required env vars" in result.stderr
+    assert result.stderr.strip() == "Live Feishu transport is not yet implemented"
+
+
+def test_live_feishu_placeholder_blocks_with_env(tmp_path: Path) -> None:
+    db_path = tmp_path / "bridge.sqlite"
+    evidence = tmp_path / "guard.json"
+
+    result = _run(
+        "process-fixture",
+        str(FIXTURE),
+        "--db",
+        str(db_path),
+        "--live-feishu",
+        "--evidence",
+        str(evidence),
+        env={"FEISHU_APP_ID": "app-id", "FEISHU_APP_SECRET": "app-secret"},
+    )
+
+    assert result.returncode != 0
+    assert result.stderr.strip() == "Live Feishu transport is not yet implemented"
 
 
 def test_process_fixture_reconciliation_required_exits_non_zero(tmp_path: Path) -> None:

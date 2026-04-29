@@ -21,15 +21,11 @@ from .state import (
 )
 
 UPDATE_MARKER = "\n\n> Updated by Phase 1 prototype"
-_EXPLICIT_REJECTION_PATTERNS = (
+_EXPLICIT_PRE_ACCEPTANCE_REJECTION_PATTERNS = (
     "invalid receive_id",
     "receive_id is invalid",
-    "invalid recipient",
-    "invalid user",
-    "user not found",
     "invalid open_id",
     "open_id is invalid",
-    "invalid chat_id",
 )
 _SENSITIVE_FAILURE_VALUE_PATTERN = re.compile(
     r"(?i)\b(?:[a-z0-9]+_id|tenant_key|app_secret|token|troubleshooter)\b\s*[:=]\s*[^;,\s]+"
@@ -181,16 +177,21 @@ class BridgeOrchestrator:
                 failure_reason=None,
             )
         except FeishuApiError as exc:
+            next_status = (
+                Status.UPDATE_FAILED
+                if self.is_explicit_update_rejection(exc)
+                else Status.RECONCILIATION_REQUIRED
+            )
             self._state.update_status(
                 bridge_message_id,
-                Status.UPDATE_FAILED,
+                next_status,
                 failure_reason=self._format_feishu_error_reason(exc),
             )
             raise BridgeOrchestrationError(
                 f"Feishu update failed for {bridge_message_id}",
                 bridge_message_id=bridge_message_id,
                 card_id=card_id,
-                status=Status.UPDATE_FAILED.value,
+                status=next_status.value,
                 mock_calls=self._mock_calls_since(call_count_before),
             ) from exc
 
@@ -521,8 +522,15 @@ class BridgeOrchestrator:
             return False
 
         has_non_zero_code = re.search(r"\bcode\s*[:=]\s*(?!0\b)\d+", lowered) is not None
-        has_validation_pattern = any(pattern in lowered for pattern in _EXPLICIT_REJECTION_PATTERNS)
+        has_validation_pattern = any(
+            pattern in lowered for pattern in _EXPLICIT_PRE_ACCEPTANCE_REJECTION_PATTERNS
+        )
         return has_validation_pattern and has_non_zero_code
+
+    @staticmethod
+    def is_explicit_update_rejection(exc: FeishuApiError) -> bool:
+        status_code = int(exc.status_code)
+        return 400 <= status_code < 500 and status_code not in {408, 429}
 
     def _mock_call_count(self) -> int:
         transport = getattr(self._client, "_transport", None)
