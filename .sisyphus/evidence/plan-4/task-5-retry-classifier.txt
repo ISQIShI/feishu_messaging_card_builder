@@ -1,0 +1,9 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/zaixiaqishi/MyStorage/Project/feishu_messaging_card_builder
+configfile: pyproject.toml
+collected 22 items / 7 deselected / 15 selected
+
+tests/test_failures.py ...............                                   [100%]
+
+======================= 15 passed, 7 deselected in 0.17s =======================
