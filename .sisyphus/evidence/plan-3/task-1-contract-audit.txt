@@ -1,0 +1,9 @@
+TASK 1 CONTRACT AUDIT
+DOCS: docs/phase-2-reliability-contract.md, docs/README.md
+RESULT: PASS
+TERM OK: idempotency_key
+TERM OK: updatable_until
+TERM OK: reconciliation_required
+TERM OK: last remotely accepted
+TERM OK: invalid receive_id
+TERM OK: .venv/bin/python
