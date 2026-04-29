@@ -5,7 +5,7 @@
     "error": {
       "type": "api_error",
       "code": 99992351,
-      "message": "API error: [99992351] The request you send is not a valid {open_id} or not exists, and the example value is {ou_da5****************dfe}. Invalid ids: [<redacted-invalid-open-id>] . Please see field_violations for details and refer to API documentation to correct accordingly and resubmit",
+      "message": "API error: [99992351] The request you send is not a valid {open_id} or not exists, and the example value is {<redacted-open-id-example>}. Invalid ids: [<redacted-invalid-open-id>] . Please see field_violations for details and refer to API documentation to correct accordingly and resubmit",
       "detail": {
         "field_violations": [
           {

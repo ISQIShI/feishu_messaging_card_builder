@@ -1,0 +1,8 @@
+=== Stale reference audit 7870089 ===
+
+=== Scope guardrails ===
+No forbidden surfaces
+
+=== Command convention audit ===
+(all use .venv/bin/python)
+57 passed in 0.95s
