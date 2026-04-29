@@ -139,11 +139,15 @@ def test_duplicate_bridge_message_id_reuses_record() -> None:
         fixture = build_fixture()
         hash_value = content_hash(fixture["content_markdown"])
 
-        first_row, first_is_new = manager.get_or_create(fixture, hash_value)
-        second_row, second_is_new = manager.get_or_create(fixture, hash_value)
+        first_result = manager.get_or_create(fixture, hash_value)
+        second_result = manager.get_or_create(fixture, hash_value)
+        first_row = first_result.record
+        second_row = second_result.record
 
-        assert first_is_new is True
-        assert second_is_new is False
+        assert first_result.is_new is True
+        assert first_result.content_changed is False
+        assert second_result.is_new is False
+        assert second_result.content_changed is False
         assert first_row["bridge_message_id"] == second_row["bridge_message_id"]
         assert first_row["idempotency_key"] == first_row["bridge_message_id"]
         assert first_row["version"] == 1
@@ -176,7 +180,7 @@ def test_failure_statuses_are_representable() -> None:
                 content_markdown=f"content-{index}",
             )
             hash_value = content_hash(fixture["content_markdown"])
-            record, _ = manager.get_or_create(fixture, hash_value)
+            record = manager.get_or_create(fixture, hash_value).record
             manager.update_status(record["bridge_message_id"], status, failure_reason=f"state={status.value}")
             reloaded = manager.get_record(record["bridge_message_id"])
             assert reloaded is not None
@@ -191,7 +195,7 @@ def test_card_created_to_sent_transition() -> None:
     try:
         fixture = build_fixture()
         hash_value = content_hash(fixture["content_markdown"])
-        record, _ = manager.get_or_create(fixture, hash_value)
+        record = manager.get_or_create(fixture, hash_value).record
 
         manager.update_status(record["bridge_message_id"], Status.CARD_CREATED, card_id="card_123")
         manager.update_status(
@@ -217,7 +221,7 @@ def test_update_status_can_mutate_version() -> None:
     try:
         fixture = build_fixture(hermes_message_id="hermes-version")
         hash_value = content_hash(fixture["content_markdown"])
-        record, _ = manager.get_or_create(fixture, hash_value)
+        record = manager.get_or_create(fixture, hash_value).record
 
         manager.update_status(record["bridge_message_id"], Status.UPDATED, sequence=3, version=2)
 
@@ -268,7 +272,7 @@ def test_updatable_window_helpers_reflect_expiry() -> None:
     try:
         fixture = build_fixture(hermes_message_id="hermes-expiry")
         hash_value = content_hash(fixture["content_markdown"])
-        record, _ = manager.get_or_create(fixture, hash_value)
+        record = manager.get_or_create(fixture, hash_value).record
         bridge_message_id = record["bridge_message_id"]
 
         assert manager.is_updatable(bridge_message_id) is True
@@ -293,7 +297,7 @@ def test_reconciliation_required_status() -> None:
     try:
         fixture = build_fixture(hermes_message_id="hermes-reconcile")
         hash_value = content_hash(fixture["content_markdown"])
-        record, _ = manager.get_or_create(fixture, hash_value)
+        record = manager.get_or_create(fixture, hash_value).record
 
         manager.update_status(
             record["bridge_message_id"],
@@ -305,6 +309,68 @@ def test_reconciliation_required_status() -> None:
         assert reloaded is not None
         assert reloaded["status"] == Status.RECONCILIATION_REQUIRED.value
         assert reloaded["failure_reason"] == "send succeeded but local update failed"
+    finally:
+        temp_dir.cleanup()
+
+
+@pytest.mark.parametrize(
+    ("starting_status", "expected_status", "expire_record"),
+    [
+        (Status.NEW, Status.NEW, False),
+        (Status.CARD_CREATED, Status.CARD_CREATED, False),
+        (Status.SEND_PENDING, Status.SEND_PENDING, False),
+        (Status.SEND_FAILED, Status.SEND_FAILED, False),
+        (Status.SENT, Status.SENT, False),
+        (Status.UPDATED, Status.UPDATED, False),
+        (Status.UPDATE_FAILED, Status.UPDATE_FAILED, False),
+        (Status.RECONCILIATION_REQUIRED, Status.RECONCILIATION_REQUIRED, False),
+        (Status.EXPIRED, Status.EXPIRED, False),
+        (Status.SENT, Status.EXPIRED, True),
+        (Status.UPDATE_FAILED, Status.EXPIRED, True),
+    ],
+)
+def test_get_or_create_returns_changed_content_flag_by_lifecycle_state(
+    starting_status: Status,
+    expected_status: Status,
+    expire_record: bool,
+) -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id=f"hermes-{starting_status.value}")
+        initial_result = manager.get_or_create(fixture, content_hash(fixture["content_markdown"]))
+        record = initial_result.record
+        manager.update_status(
+            record["bridge_message_id"],
+            starting_status,
+            card_id="card_123" if starting_status is not Status.NEW else None,
+            feishu_message_id="om_123" if starting_status in {Status.SENT, Status.UPDATED, Status.EXPIRED} else None,
+            sequence=2 if starting_status in {Status.SENT, Status.UPDATED, Status.UPDATE_FAILED, Status.EXPIRED} else 1,
+            version=2 if starting_status in {Status.UPDATED, Status.UPDATE_FAILED, Status.EXPIRED} else 1,
+            failure_reason="existing failure" if starting_status in {Status.SEND_FAILED, Status.UPDATE_FAILED, Status.RECONCILIATION_REQUIRED} else None,
+        )
+
+        if expire_record:
+            expired_timestamp = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+            with sqlite3.connect(Path(temp_dir.name) / "bridge.sqlite") as connection:
+                _ = connection.execute(
+                    "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+                    (expired_timestamp, record["bridge_message_id"]),
+                )
+
+        changed_fixture = build_fixture(
+            hermes_message_id=fixture["hermes_message_id"],
+            content_markdown=f"{fixture['content_markdown']}\nChanged content.",
+        )
+        changed_result = manager.get_or_create(
+            changed_fixture,
+            content_hash(changed_fixture["content_markdown"]),
+        )
+
+        assert changed_result.is_new is False
+        assert changed_result.content_changed is True
+        assert changed_result.record["status"] == expected_status.value
+        assert changed_result.record["content_markdown"] == fixture["content_markdown"]
+        assert changed_result.record["content_hash"] == content_hash(fixture["content_markdown"])
     finally:
         temp_dir.cleanup()
 

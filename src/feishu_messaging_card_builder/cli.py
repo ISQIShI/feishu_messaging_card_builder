@@ -64,6 +64,31 @@ def _write_json(path: str | Path, payload: object) -> None:
     _ = target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+_SAFE_RECORD_FIELDS = {
+    "bridge_message_id",
+    "source_platform",
+    "session_key",
+    "final_reply_index",
+    "content_hash",
+    "status",
+    "version",
+    "sequence",
+    "updatable_until",
+    "created_at",
+    "updated_at",
+    "failure_reason",
+    "idempotency_key",
+}
+
+
+def _safe_record_view(record: dict[str, object]) -> dict[str, object]:
+    return {key: value for key, value in record.items() if key in _SAFE_RECORD_FIELDS}
+
+
+def _safe_records_view(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [_safe_record_view(record) for record in records]
+
+
 def _process_fixture_command(args: argparse.Namespace) -> int:
     typed_args = cast(CLIArgs, cast(object, args))
     if not _ensure_live_guard(typed_args.live_feishu):
@@ -117,14 +142,26 @@ def _update_card_command(args: argparse.Namespace) -> int:
 def _inspect_state_command(args: argparse.Namespace) -> int:
     typed_args = cast(CLIArgs, cast(object, args))
     state = BridgeStateManager(typed_args.db)
+    raw_mode = bool(getattr(typed_args, "raw", False) or getattr(typed_args, "debug", False))
     if typed_args.bridge_message_id:
-        record = state.get_record(typed_args.bridge_message_id)
+        record = (
+            state.materialize_expired(typed_args.bridge_message_id)
+            if raw_mode
+            else state.get_record_for_inspect(typed_args.bridge_message_id)
+        )
         if record is None:
             raise BridgeOrchestrationError(f"No bridge record found for {typed_args.bridge_message_id}")
-        print(json.dumps(record, ensure_ascii=False, indent=2))
+        output: dict[str, object] = dict(record) if raw_mode else _safe_record_view(dict(record))
+        print(json.dumps(output, ensure_ascii=False, indent=2))
         return 0
 
-    print(json.dumps(state.list_records(), ensure_ascii=False, indent=2))
+    records = state.list_records() if raw_mode else state.list_records_for_inspect()
+    output_records: list[dict[str, object]] = (
+        [dict(record) for record in records]
+        if raw_mode
+        else _safe_records_view([dict(record) for record in records])
+    )
+    print(json.dumps(output_records, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -171,6 +208,8 @@ def build_parser() -> argparse.ArgumentParser:
         dest="bridge_message_id",
         help="Optional bridge message id filter.",
     )
+    _ = inspect_parser.add_argument("--raw", action="store_true", help="Print full internal state for local debugging.")
+    _ = inspect_parser.add_argument("--debug", action="store_true", help="Alias for --raw for local debugging.")
     inspect_parser.set_defaults(func=_inspect_state_command)
 
     return parser

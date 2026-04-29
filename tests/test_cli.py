@@ -4,7 +4,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sqlite3
 import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import cast
 
@@ -105,7 +107,7 @@ def test_process_fixture_reconciliation_required_exits_non_zero(tmp_path: Path) 
     evidence = tmp_path / "reconciliation.json"
     state = BridgeStateManager(str(db_path))
     parsed = parse_final_reply(cast(object, json.loads(FIXTURE.read_text(encoding="utf-8"))))
-    record, _is_new = state.get_or_create(
+    record = state.get_or_create(
         {
             "source_platform": parsed.source_platform,
             "session_key": parsed.session_key,
@@ -114,7 +116,7 @@ def test_process_fixture_reconciliation_required_exits_non_zero(tmp_path: Path) 
             "content_markdown": parsed.content_markdown,
         },
         hashlib.sha256(parsed.content_markdown.encode("utf-8")).hexdigest(),
-    )
+    ).record
     state.update_status(
         record["bridge_message_id"],
         Status.SEND_FAILED,
@@ -158,6 +160,94 @@ def test_inspect_state_prints_json(tmp_path: Path) -> None:
     payload = cast(object, json.loads(result.stdout))
     assert result.returncode == 0
     assert isinstance(payload, list)
+
+
+def test_inspect_state_defaults_to_safe_fields(tmp_path: Path) -> None:
+    db_path = tmp_path / "bridge.sqlite"
+    evidence = tmp_path / "process.json"
+
+    _ = _run(
+        "process-fixture",
+        str(FIXTURE),
+        "--db",
+        str(db_path),
+        "--mock-feishu",
+        "--evidence",
+        str(evidence),
+    )
+
+    result = _run("inspect-state", "--db", str(db_path))
+    payload = cast(list[dict[str, object]], json.loads(result.stdout))
+
+    assert result.returncode == 0
+    assert payload
+    record = payload[0]
+    assert "content_markdown" not in record
+    assert "card_id" not in record
+    assert "feishu_message_id" not in record
+    assert "tenant_key" not in record
+
+
+def test_inspect_state_raw_flag_exposes_full_fields(tmp_path: Path) -> None:
+    db_path = tmp_path / "bridge.sqlite"
+    evidence = tmp_path / "process.json"
+
+    _ = _run(
+        "process-fixture",
+        str(FIXTURE),
+        "--db",
+        str(db_path),
+        "--mock-feishu",
+        "--evidence",
+        str(evidence),
+    )
+
+    result = _run("inspect-state", "--db", str(db_path), "--raw")
+    payload = cast(list[dict[str, object]], json.loads(result.stdout))
+
+    assert result.returncode == 0
+    assert payload
+    record = payload[0]
+    assert "content_markdown" in record
+    assert "card_id" in record
+    assert "feishu_message_id" in record
+
+
+def test_inspect_state_materializes_expired_status(tmp_path: Path) -> None:
+    db_path = tmp_path / "bridge.sqlite"
+    evidence = tmp_path / "process.json"
+
+    _ = _run(
+        "process-fixture",
+        str(FIXTURE),
+        "--db",
+        str(db_path),
+        "--mock-feishu",
+        "--evidence",
+        str(evidence),
+    )
+
+    process_payload = cast(dict[str, object], json.loads(evidence.read_text(encoding="utf-8")))
+    bridge_message_id = cast(str, process_payload["bridge_message_id"])
+    expired_timestamp = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+    with sqlite3.connect(db_path) as connection:
+        _ = connection.execute(
+            "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+            (expired_timestamp, bridge_message_id),
+        )
+
+    result = _run(
+        "inspect-state",
+        "--db",
+        str(db_path),
+        "--bridge-message-id",
+        bridge_message_id,
+    )
+
+    payload = cast(dict[str, object], json.loads(result.stdout))
+    assert result.returncode == 0
+    assert payload["bridge_message_id"] == bridge_message_id
+    assert payload["status"] == Status.EXPIRED.value
 
 
 def test_cli_help_lists_all_subcommands() -> None:

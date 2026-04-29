@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 import hashlib
@@ -20,6 +21,7 @@ class Status(StrEnum):
     SENT = "sent"
     UPDATE_FAILED = "update_failed"
     UPDATED = "updated"
+    EXPIRED = "expired"
     RECONCILIATION_REQUIRED = "reconciliation_required"
     UNSUPPORTED = "unsupported"
 
@@ -55,11 +57,30 @@ class BridgeRecord(TypedDict):
     updated_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class GetOrCreateResult:
+    record: BridgeRecord
+    is_new: bool
+    content_changed: bool
+
+    def __iter__(self):
+        yield self.record
+        yield self.is_new
+
+
 class BridgeStateManager:
     """SQLite-backed state store for bridge message deliveries."""
 
     _MUTABLE_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"card_id", "feishu_message_id", "sequence", "version", "failure_reason"}
+        {
+            "card_id",
+            "content_markdown",
+            "content_hash",
+            "feishu_message_id",
+            "sequence",
+            "version",
+            "failure_reason",
+        }
     )
 
     def __init__(self, db_path: str) -> None:
@@ -79,7 +100,7 @@ class BridgeStateManager:
         content_hash = self._content_hash(fixture["content_markdown"])
         return ":".join((source_platform, session_key, final_reply_index, content_hash))
 
-    def get_or_create(self, fixture: DeliveryFixture, content_hash: str) -> tuple[BridgeRecord, bool]:
+    def get_or_create(self, fixture: DeliveryFixture, content_hash: str) -> GetOrCreateResult:
         bridge_message_id = self.bridge_message_id(fixture)
         idempotency_key = bridge_message_id
         now = self._timestamp()
@@ -122,13 +143,12 @@ class BridgeStateManager:
             if row is None:
                 raise BridgeStateError(f"Unable to load record for {bridge_message_id} after insert")
 
-            row_dict = self._row_to_dict(row)
-            if row_dict["content_hash"] != content_hash:
-                raise BridgeStateError(
-                    f"Existing record for {bridge_message_id} has mismatched content_hash"
-                )
-
-            return row_dict, cursor.rowcount == 1
+            row_dict = self._materialize_expired_record(self._row_to_dict(row, include_sensitive=True))
+            return GetOrCreateResult(
+                record=row_dict,
+                is_new=cursor.rowcount == 1,
+                content_changed=row_dict["content_hash"] != content_hash,
+            )
         except sqlite3.Error as exc:
             raise BridgeStateError("Failed to read or create bridge state record") from exc
 
@@ -149,6 +169,10 @@ class BridgeStateManager:
             extra_fields.get("sequence"),
             "version" in extra_fields,
             extra_fields.get("version"),
+            "content_markdown" in extra_fields,
+            extra_fields.get("content_markdown"),
+            "content_hash" in extra_fields,
+            extra_fields.get("content_hash"),
             "failure_reason" in extra_fields,
             extra_fields.get("failure_reason"),
             bridge_message_id,
@@ -165,6 +189,8 @@ class BridgeStateManager:
                         "feishu_message_id = CASE WHEN ? THEN ? ELSE feishu_message_id END, "
                         "sequence = CASE WHEN ? THEN ? ELSE sequence END, "
                         "version = CASE WHEN ? THEN ? ELSE version END, "
+                        "content_markdown = CASE WHEN ? THEN ? ELSE content_markdown END, "
+                        "content_hash = CASE WHEN ? THEN ? ELSE content_hash END, "
                         "failure_reason = CASE WHEN ? THEN ? ELSE failure_reason END "
                         "WHERE bridge_message_id = ?"
                     ),
@@ -176,7 +202,7 @@ class BridgeStateManager:
         except sqlite3.Error as exc:
             raise BridgeStateError(f"Failed to update state for {bridge_message_id}") from exc
 
-    def get_record(self, bridge_message_id: str) -> BridgeRecord | None:
+    def get_record(self, bridge_message_id: str, *, include_sensitive: bool = True) -> BridgeRecord | None:
         try:
             with self._connect() as connection:
                 row = cast(
@@ -189,7 +215,15 @@ class BridgeStateManager:
         except sqlite3.Error as exc:
             raise BridgeStateError(f"Failed to fetch state for {bridge_message_id}") from exc
 
-        return None if row is None else self._row_to_dict(row)
+        if row is None:
+            return None
+        return self._row_to_dict(row, include_sensitive=include_sensitive)
+
+    def get_record_for_inspect(self, bridge_message_id: str) -> BridgeRecord | None:
+        record = self.get_record(bridge_message_id, include_sensitive=False)
+        if record is None:
+            return None
+        return self._materialize_expired_record(record)
 
     def is_updatable(self, bridge_message_id: str) -> bool:
         record = self.get_record(bridge_message_id)
@@ -205,7 +239,7 @@ class BridgeStateManager:
 
         return self._is_timestamp_expired(record["updatable_until"])
 
-    def list_records(self) -> list[BridgeRecord]:
+    def list_records(self, *, include_sensitive: bool = True) -> list[BridgeRecord]:
         try:
             with self._connect() as connection:
                 rows = cast(
@@ -217,7 +251,16 @@ class BridgeStateManager:
         except sqlite3.Error as exc:
             raise BridgeStateError("Failed to list bridge state records") from exc
 
-        return [self._row_to_dict(row) for row in rows]
+        return [self._row_to_dict(row, include_sensitive=include_sensitive) for row in rows]
+
+    def list_records_for_inspect(self) -> list[BridgeRecord]:
+        return [self._materialize_expired_record(record) for record in self.list_records(include_sensitive=False)]
+
+    def materialize_expired(self, bridge_message_id: str) -> BridgeRecord | None:
+        record = self.get_record(bridge_message_id, include_sensitive=True)
+        if record is None:
+            return None
+        return self._materialize_expired_record(record)
 
     def _connect(self) -> sqlite3.Connection:
         try:
@@ -336,37 +379,56 @@ class BridgeStateManager:
     def _is_timestamp_expired(timestamp: str) -> bool:
         return datetime.now(timezone.utc) > datetime.fromisoformat(timestamp)
 
+    def _materialize_expired_record(self, record: BridgeRecord) -> BridgeRecord:
+        if record["status"] == Status.EXPIRED.value:
+            return record
+        if record["status"] not in {
+            Status.SENT.value,
+            Status.UPDATED.value,
+            Status.UPDATE_FAILED.value,
+        }:
+            return record
+        if not self._is_timestamp_expired(record["updatable_until"]):
+            return record
+
+        self.update_status(record["bridge_message_id"], Status.EXPIRED)
+        refreshed = self.get_record(record["bridge_message_id"], include_sensitive=True)
+        if refreshed is None:
+            raise BridgeStateError(
+                f"No record found for bridge_message_id={record['bridge_message_id']} after expiry materialization"
+            )
+        return refreshed
+
     @staticmethod
     def _url_safe_component(value: object) -> str:
         return quote(str(value), safe="-._~")
 
     @staticmethod
-    def _row_to_dict(row: sqlite3.Row) -> BridgeRecord:
-        return cast(
-            BridgeRecord,
-            cast(
-                object,
-            {
-                "bridge_message_id": cast(str, row["bridge_message_id"]),
-                "idempotency_key": cast(str, row["idempotency_key"]),
-                "source_platform": cast(str, row["source_platform"]),
-                "session_key": cast(str, row["session_key"]),
-                "hermes_message_id": cast(str | None, row["hermes_message_id"]),
-                "final_reply_index": cast(int, row["final_reply_index"]),
-                "content_markdown": cast(str, row["content_markdown"]),
-                "content_hash": cast(str, row["content_hash"]),
-                "card_id": cast(str | None, row["card_id"]),
-                "feishu_message_id": cast(str | None, row["feishu_message_id"]),
-                "sequence": cast(int, row["sequence"]),
-                "version": cast(int, row["version"]),
-                "status": cast(str, row["status"]),
-                "failure_reason": cast(str | None, row["failure_reason"]),
-                "created_at": cast(str, row["created_at"]),
-                "updatable_until": cast(str, row["updatable_until"]),
-                "updated_at": cast(str, row["updated_at"]),
-            },
+    def _row_to_dict(row: sqlite3.Row, *, include_sensitive: bool = False) -> BridgeRecord:
+        base_record: dict[str, object] = {
+            "bridge_message_id": cast(str, row["bridge_message_id"]),
+            "idempotency_key": cast(str, row["idempotency_key"]),
+            "source_platform": cast(str, row["source_platform"]),
+            "session_key": cast(str, row["session_key"]),
+            "hermes_message_id": cast(str | None, row["hermes_message_id"]),
+            "final_reply_index": cast(int, row["final_reply_index"]),
+            "content_markdown": (
+                cast(str, row["content_markdown"]) if include_sensitive else "[redacted]"
             ),
-        )
+            "content_hash": cast(str, row["content_hash"]),
+            "card_id": cast(str | None, row["card_id"]) if include_sensitive else None,
+            "feishu_message_id": (
+                cast(str | None, row["feishu_message_id"]) if include_sensitive else None
+            ),
+            "sequence": cast(int, row["sequence"]),
+            "version": cast(int, row["version"]),
+            "status": cast(str, row["status"]),
+            "failure_reason": cast(str | None, row["failure_reason"]),
+            "created_at": cast(str, row["created_at"]),
+            "updatable_until": cast(str, row["updatable_until"]),
+            "updated_at": cast(str, row["updated_at"]),
+        }
+        return cast(BridgeRecord, cast(object, base_record))
 
 
 __all__ = [
@@ -374,6 +436,7 @@ __all__ = [
     "BridgeStateError",
     "BridgeStateManager",
     "DeliveryFixture",
+    "GetOrCreateResult",
     "SQLiteValue",
     "Status",
 ]

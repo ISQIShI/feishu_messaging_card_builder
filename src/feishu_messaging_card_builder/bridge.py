@@ -12,7 +12,13 @@ import uuid as uuid_module
 from .feishu_client import FeishuApiError, FeishuCardClient, JSONDict
 from .parser import ParsedFinalReply, parse_final_reply
 from .renderer import render_card_json
-from .state import BridgeRecord, BridgeStateError, BridgeStateManager, DeliveryFixture, Status
+from .state import (
+    BridgeRecord,
+    BridgeStateError,
+    BridgeStateManager,
+    DeliveryFixture,
+    Status,
+)
 
 UPDATE_MARKER = "\n\n> Updated by Phase 1 prototype"
 _EXPLICIT_REJECTION_PATTERNS = (
@@ -25,6 +31,12 @@ _EXPLICIT_REJECTION_PATTERNS = (
     "open_id is invalid",
     "invalid chat_id",
 )
+_SENSITIVE_FAILURE_VALUE_PATTERN = re.compile(
+    r"(?i)\b(?:[a-z0-9]+_id|tenant_key|app_secret|token|troubleshooter)\b\s*[:=]\s*[^;,\s]+"
+)
+_BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+-]+")
+_URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
+_LONG_TOKEN_PATTERN = re.compile(r"\b[A-Za-z0-9._~+-]{16,}\b")
 
 
 @dataclass(slots=True)
@@ -89,11 +101,15 @@ class BridgeOrchestrator:
     def process_fixture(self, fixture_path: str | Path, recipient: str) -> ProcessResult:
         parsed = parse_final_reply(self._load_fixture(fixture_path))
         content_hash = self._content_hash(parsed.content_markdown)
-        record, is_new = self._state.get_or_create(self._delivery_fixture(parsed), content_hash)
+        get_or_create_result = self._state.get_or_create(self._delivery_fixture(parsed), content_hash)
+        record = get_or_create_result.record
+        is_new = get_or_create_result.is_new
         bridge_message_id = record["bridge_message_id"]
         self._parsed_cache[bridge_message_id] = parsed
 
         if not is_new:
+            if get_or_create_result.content_changed:
+                return self._process_changed_content(record, parsed, recipient)
             if record["status"] in {Status.SENT.value, Status.UPDATED.value}:
                 return self._duplicate_result(record)
             if record["status"] == Status.RECONCILIATION_REQUIRED.value:
@@ -111,16 +127,30 @@ class BridgeOrchestrator:
         return self._create_and_send_card(record, parsed, recipient)
 
     def update_card(self, bridge_message_id: str) -> UpdateResult:
-        record = self._state.get_record(bridge_message_id)
+        record = self._state.materialize_expired(bridge_message_id)
         if record is None:
             raise BridgeOrchestrationError(
                 f"No bridge record found for {bridge_message_id}",
                 bridge_message_id=bridge_message_id,
             )
 
-        if record["status"] not in {Status.SENT.value, Status.UPDATED.value}:
+        previous_sequence = int(record["version"])
+        if record["status"] == Status.EXPIRED.value:
+            return UpdateResult(
+                bridge_message_id=bridge_message_id,
+                previous_sequence=previous_sequence,
+                new_sequence=previous_sequence,
+                status=Status.EXPIRED.value,
+                mock_calls=[],
+            )
+
+        if record["status"] not in {
+            Status.SENT.value,
+            Status.UPDATED.value,
+            Status.UPDATE_FAILED.value,
+        }:
             raise BridgeOrchestrationError(
-                "Only sent or updated records can be updated",
+                "Only sent, updated, or update_failed records can be updated",
                 bridge_message_id=bridge_message_id,
                 card_id=record["card_id"],
                 status=record["status"],
@@ -137,7 +167,6 @@ class BridgeOrchestrator:
         parsed = self._rebuild_parsed_reply_from_record(record)
         updated_parsed = self._updated_parsed_reply(parsed)
         updated_card_json = self._render_transport_card_json(updated_parsed)
-        previous_sequence = int(record["version"])
         new_sequence = previous_sequence + 1
         request_uuid = uuid_module.uuid4().hex
         call_count_before = self._mock_call_count()
@@ -181,7 +210,7 @@ class BridgeOrchestrator:
         return bridge_message_id in self._parsed_cache
 
     def get_bridge_messages(self) -> list[dict[str, object]]:
-        return [dict(record) for record in self._state.list_records()]
+        return [dict(record) for record in self._state.list_records(include_sensitive=True)]
 
     def _create_and_send_card(
         self,
@@ -332,6 +361,95 @@ class BridgeOrchestrator:
             recovery_instruction=None,
         )
 
+    def _process_changed_content(
+        self,
+        record: BridgeRecord,
+        parsed: ParsedFinalReply,
+        recipient: str,
+    ) -> ProcessResult:
+        status = record["status"]
+        if status == Status.RECONCILIATION_REQUIRED.value:
+            return self._reconciliation_result(record)
+        if status == Status.EXPIRED.value:
+            return self._expired_result(record)
+        if status == Status.SEND_FAILED.value:
+            if not self.is_explicit_pre_acceptance_rejection(record["failure_reason"]):
+                return self._reconciliation_required_for_ambiguous_send(record)
+            updated_record = self._update_record_content(record, parsed)
+            return self._send_existing_card(updated_record, recipient)
+        if status in {
+            Status.NEW.value,
+            Status.CARD_CREATED.value,
+            Status.SEND_PENDING.value,
+        }:
+            updated_record = self._update_record_content(record, parsed)
+            if updated_record["card_id"] and updated_record["status"] in {
+                Status.CARD_CREATED.value,
+                Status.SEND_PENDING.value,
+            }:
+                return self._send_existing_card(updated_record, recipient)
+            return self._create_and_send_card(updated_record, parsed, recipient)
+        if status in {
+            Status.SENT.value,
+            Status.UPDATED.value,
+            Status.UPDATE_FAILED.value,
+        }:
+            updated_record = self._update_record_content(record, parsed)
+            update_result = self.update_card(updated_record["bridge_message_id"])
+            return ProcessResult(
+                bridge_message_id=update_result.bridge_message_id,
+                card_id=updated_record["card_id"],
+                feishu_message_id=updated_record["feishu_message_id"],
+                sequence=update_result.new_sequence,
+                status=update_result.status,
+                is_duplicate=False,
+                mock_calls=update_result.mock_calls,
+                recovery_instruction=None,
+            )
+        return self._terminal_result(record)
+
+    def _update_record_content(self, record: BridgeRecord, parsed: ParsedFinalReply) -> BridgeRecord:
+        self._state.update_status(
+            record["bridge_message_id"],
+            Status(record["status"]),
+            content_markdown=parsed.content_markdown,
+            content_hash=self._content_hash(parsed.content_markdown),
+            failure_reason=None,
+        )
+        refreshed = self._state.get_record(record["bridge_message_id"], include_sensitive=True)
+        if refreshed is None:
+            raise BridgeOrchestrationError(
+                f"Record {record['bridge_message_id']} disappeared after content update",
+                bridge_message_id=record["bridge_message_id"],
+                card_id=record["card_id"],
+                status=record["status"],
+            )
+        return refreshed
+
+    def _expired_result(self, record: BridgeRecord) -> ProcessResult:
+        return ProcessResult(
+            bridge_message_id=record["bridge_message_id"],
+            card_id=record["card_id"],
+            feishu_message_id=record["feishu_message_id"],
+            sequence=int(record["sequence"]),
+            status=Status.EXPIRED.value,
+            is_duplicate=False,
+            mock_calls=[],
+            recovery_instruction="Card update window expired; create a new card for changed content.",
+        )
+
+    def _terminal_result(self, record: BridgeRecord) -> ProcessResult:
+        return ProcessResult(
+            bridge_message_id=record["bridge_message_id"],
+            card_id=record["card_id"],
+            feishu_message_id=record["feishu_message_id"],
+            sequence=int(record["sequence"]),
+            status=record["status"],
+            is_duplicate=False,
+            mock_calls=[],
+            recovery_instruction=record["failure_reason"],
+        )
+
     def _reconciliation_required_for_ambiguous_send(self, record: BridgeRecord) -> ProcessResult:
         recovery_instruction = (
             "Previous send attempt failed after card creation, but the failure was not an explicit "
@@ -428,15 +546,26 @@ class BridgeOrchestrator:
 
     @staticmethod
     def _format_feishu_error_reason(exc: FeishuApiError) -> str:
-        details: list[str] = [str(exc), f"status_code={exc.status_code}"]
+        summary_parts: list[str] = []
         for key in ("code", "msg", "message", "error", "error_message", "error_msg"):
             value = exc.response.get(key)
             if value in (None, ""):
                 continue
-            details.append(f"{key}={value}")
-        if exc.response:
-            details.append(f"response={json.dumps(exc.response, ensure_ascii=False, sort_keys=True)}")
-        return "; ".join(details)
+            summary_parts.append(f"{key}={BridgeOrchestrator._redact_failure_text(str(value))}")
+
+        summary = "; ".join(summary_parts) if summary_parts else "redacted Feishu API error"
+        return (
+            f"{exc.__class__.__name__}; status_code={exc.status_code}; summary="
+            f"{BridgeOrchestrator._redact_failure_text(summary)}"
+        )
+
+    @staticmethod
+    def _redact_failure_text(text: str) -> str:
+        redacted = _SENSITIVE_FAILURE_VALUE_PATTERN.sub(lambda match: f"{match.group(0).split('=')[0].strip()}=[REDACTED]", text)
+        redacted = _BEARER_PATTERN.sub("Bearer [REDACTED]", redacted)
+        redacted = _URL_PATTERN.sub("[REDACTED_URL]", redacted)
+        redacted = _LONG_TOKEN_PATTERN.sub("[REDACTED]", redacted)
+        return redacted
 
     @staticmethod
     def _rebuild_parsed_reply_from_record(record: BridgeRecord) -> ParsedFinalReply:

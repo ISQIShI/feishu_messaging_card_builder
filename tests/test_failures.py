@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import sqlite3
 from typing import cast
 
 import pytest
@@ -49,7 +51,16 @@ def configure_fail_first_send(transport: MockFeishuTransport) -> None:
         if not did_fail_send:
             did_fail_send = True
             request = build_card_entity_send_request(card_id, recipient)
-            error_response = cast(JSONDict, {"error": "mock send failure", "status_code": 503})
+            error_response = cast(
+                JSONDict,
+                {
+                    "error": "mock send failure",
+                    "status_code": 503,
+                    "tenant_key": "tenant-secret",
+                    "troubleshooter": "https://example.invalid/troubleshooter?id=abc123",
+                    "message": "Bearer abc.def.ghi",
+                },
+            )
             params = request.get("params")
             transport.calls.append(
                 {
@@ -233,6 +244,25 @@ def test_send_success_persist_fail_triggers_reconciliation(tmp_path: Path) -> No
     assert record["failure_reason"] == result.recovery_instruction
 
 
+def test_failed_send_reason_is_redacted(tmp_path: Path) -> None:
+    transport = MockFeishuTransport()
+    configure_fail_first_send(transport)
+    orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    with pytest.raises(BridgeOrchestrationError):
+        _ = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:redacted")
+
+    record = state.list_records()[0]
+    failure_reason = record["failure_reason"]
+
+    assert failure_reason is not None
+    assert "tenant-secret" not in failure_reason
+    assert "troubleshooter" not in failure_reason
+    assert "Bearer abc.def.ghi" not in failure_reason
+    assert "FeishuApiError" in failure_reason
+    assert "status_code=503" in failure_reason
+
+
 def test_update_sequence_monotonicity(tmp_path: Path) -> None:
     orchestrator, state, transport = build_orchestrator(tmp_path)
 
@@ -252,21 +282,32 @@ def test_update_sequence_monotonicity(tmp_path: Path) -> None:
     assert record["sequence"] == 3
 
 
-def test_expired_non_updatable_mock_entity_marks_update_failed(tmp_path: Path) -> None:
-    transport = MockFeishuTransport(failure_status_codes={"update": 410})
+def test_expired_non_updatable_local_gate_skips_remote_update(tmp_path: Path) -> None:
+    db_path = tmp_path / "bridge.sqlite"
+    transport = MockFeishuTransport()
     orchestrator, state, _transport = build_orchestrator(tmp_path, transport=transport)
 
     process_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:expired")
 
-    with pytest.raises(BridgeOrchestrationError, match="Feishu update failed") as exc_info:
-        _ = orchestrator.update_card(process_result.bridge_message_id)
+    expired_timestamp = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+    with sqlite3.connect(db_path) as connection:
+        _ = connection.execute(
+            "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+            (expired_timestamp, process_result.bridge_message_id),
+        )
+
+    result = orchestrator.update_card(process_result.bridge_message_id)
 
     record = state.get_record(process_result.bridge_message_id)
-    assert exc_info.value.status == Status.UPDATE_FAILED.value
-    assert transport.calls[-1]["method"] == "PUT"
+    assert result.status == Status.EXPIRED.value
+    assert result.previous_sequence == 1
+    assert result.new_sequence == 1
+    assert result.mock_calls == []
+    assert not any(call["method"] == "PUT" for call in transport.calls)
     assert record is not None
-    assert record["status"] == Status.UPDATE_FAILED.value
+    assert record["status"] == Status.EXPIRED.value
     assert record["card_id"] == process_result.card_id
+    assert record["version"] == 1
 
 
 def test_failed_update_does_not_advance_version(tmp_path: Path) -> None:

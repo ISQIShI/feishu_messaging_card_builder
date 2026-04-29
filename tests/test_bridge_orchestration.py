@@ -1,8 +1,10 @@
 # pyright: reportMissingTypeStubs=false
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+import sqlite3
 import tempfile
 from typing import cast
 
@@ -19,7 +21,12 @@ from feishu_messaging_card_builder.feishu_client import (
     MockFeishuTransport,
     build_card_entity_send_request,
 )
-from feishu_messaging_card_builder.state import BridgeStateError, BridgeStateManager, Status
+from feishu_messaging_card_builder.state import (
+    BridgeStateError,
+    BridgeStateManager,
+    DeliveryFixture,
+    Status,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 HAPPY_FIXTURE = FIXTURES_DIR / "hermes_final_reply.json"
@@ -222,6 +229,134 @@ def test_duplicate_replay_creates_no_second_card() -> None:
         temp_dir.cleanup()
 
 
+def test_changed_content_pending_record_mutates_and_sends_existing_card() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+        pending_fixture = write_fixture(Path(temp_dir.name), "pending.json")
+        changed_fixture = write_fixture(
+            Path(temp_dir.name),
+            "pending-changed.json",
+            content_markdown="Changed pending content before first safe send.",
+        )
+        initial_parsed = load_fixture(pending_fixture)
+        initial_content = cast(str, initial_parsed["content_markdown"])
+        record = state.get_or_create(
+            cast(DeliveryFixture, cast(object, initial_parsed)),
+            hashlib.sha256(initial_content.encode("utf-8")).hexdigest(),
+        ).record
+        state.update_status(record["bridge_message_id"], Status.CARD_CREATED, card_id="card_pending")
+
+        result = orchestrator.process_fixture(changed_fixture, "open_id:pending")
+        updated_record = state.get_record(record["bridge_message_id"])
+
+        assert result.status == Status.SENT.value
+        assert result.card_id == "card_pending"
+        assert len(transport.calls) == 1
+        assert transport.calls[0]["path"] == "/open-apis/im/v1/messages"
+        assert updated_record is not None
+        assert updated_record["status"] == Status.SENT.value
+        assert updated_record["content_markdown"] == "Changed pending content before first safe send."
+    finally:
+        temp_dir.cleanup()
+
+
+def test_changed_content_sent_record_uses_update_path() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:changed-update")
+        changed_fixture = write_fixture(
+            Path(temp_dir.name),
+            "changed-update.json",
+            content_markdown="Changed content after the initial send should update the same card.",
+        )
+
+        result = orchestrator.process_fixture(changed_fixture, "open_id:changed-update")
+        record = state.get_record(first.bridge_message_id)
+
+        assert result.status == Status.UPDATED.value
+        assert result.is_duplicate is False
+        assert result.card_id == first.card_id
+        assert len(result.mock_calls) == 1
+        assert transport.calls[-1]["method"] == "PUT"
+        assert len(transport.calls) == 3
+        assert record is not None
+        assert record["status"] == Status.UPDATED.value
+        assert record["content_markdown"] == "Changed content after the initial send should update the same card."
+        assert record["version"] == 2
+    finally:
+        temp_dir.cleanup()
+
+
+def test_changed_content_ambiguous_record_requires_reconciliation_without_side_effect() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+        pending_fixture = write_fixture(Path(temp_dir.name), "ambiguous.json")
+        changed_fixture = write_fixture(
+            Path(temp_dir.name),
+            "ambiguous-changed.json",
+            content_markdown="Changed content after ambiguous send failure.",
+        )
+        initial_parsed = load_fixture(pending_fixture)
+        initial_content = cast(str, initial_parsed["content_markdown"])
+        record = state.get_or_create(
+            cast(DeliveryFixture, cast(object, initial_parsed)),
+            hashlib.sha256(initial_content.encode("utf-8")).hexdigest(),
+        ).record
+        state.update_status(
+            record["bridge_message_id"],
+            Status.SEND_FAILED,
+            card_id="card_ambiguous",
+            sequence=1,
+            failure_reason="Mock Feishu send failed; status_code=503; error=timeout",
+        )
+
+        result = orchestrator.process_fixture(changed_fixture, "open_id:ambiguous")
+        updated_record = state.get_record(record["bridge_message_id"])
+
+        assert result.status == Status.RECONCILIATION_REQUIRED.value
+        assert result.mock_calls == []
+        assert transport.calls == []
+        assert updated_record is not None
+        assert updated_record["status"] == Status.RECONCILIATION_REQUIRED.value
+        assert updated_record["content_markdown"] == initial_content
+    finally:
+        temp_dir.cleanup()
+
+
+def test_changed_content_expired_record_returns_expired_without_side_effect() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:expired-changed")
+        with sqlite3.connect(Path(temp_dir.name) / "bridge.sqlite") as connection:
+            _ = connection.execute(
+                "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+                ("2000-01-01T00:00:00+00:00", first.bridge_message_id),
+            )
+        changed_fixture = write_fixture(
+            Path(temp_dir.name),
+            "expired-changed.json",
+            content_markdown="Changed content after the local update window expired.",
+        )
+
+        result = orchestrator.process_fixture(changed_fixture, "open_id:expired-changed")
+        record = state.get_record(first.bridge_message_id)
+
+        assert result.status == Status.EXPIRED.value
+        assert result.mock_calls == []
+        assert len(transport.calls) == 2
+        assert record is not None
+        assert record["status"] == Status.EXPIRED.value
+        assert record["content_markdown"] != "Changed content after the local update window expired."
+    finally:
+        temp_dir.cleanup()
+
+
 def test_create_success_send_failure_requires_reconciliation_on_retry() -> None:
     temp_dir = tempfile.TemporaryDirectory()
     try:
@@ -340,7 +475,7 @@ def test_update_rejects_non_sent_record() -> None:
             failure_reason="forced non-sent state",
         )
 
-        with pytest.raises(BridgeOrchestrationError, match="Only sent or updated"):
+        with pytest.raises(BridgeOrchestrationError, match="Only sent, updated, or update_failed"):
             _ = orchestrator.update_card(failed_record["bridge_message_id"])
     finally:
         temp_dir.cleanup()
