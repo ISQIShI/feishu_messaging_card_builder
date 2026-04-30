@@ -16,6 +16,6 @@
 10. `git-standards.md`：确认分支、提交、PR 和历史整理规范。
 11. `open-questions.md`：最后整理目前依然悬而未决的问题。
 
-核心结论：Phase 1 验证了“消息拦截 -> 实体创建 -> 动态更新”这一链路在技术上可行。方案以飞书卡片实体为中心，维护 `card_id` 生命周期。
+核心结论：Phase 1 & 2 验证了“消息拦截 -> 实体创建 -> 动态更新”链路的技术可行性与可靠性。Phase 3 通过运行时桥接框架（Runtime Bridge Harness）在 mock 环境下收敛了 Hermes 与飞书卡片之间的事件契约。
 
 当前约束：只考虑 Hermes Feishu/Lark websocket 连接方式；任何对 Hermes 源码或其他非本项目内容的修改，都必须可安装、可卸载、可更新、可审计和可恢复。

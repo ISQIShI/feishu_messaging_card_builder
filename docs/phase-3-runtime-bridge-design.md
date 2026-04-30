@@ -337,9 +337,13 @@ Phase 3 冻结如下可逆集成边界：
 
 ## Implementation Status
 
-当前状态仅为 **design freeze**。
+当前状态为 **Core Harness Implementation**。
 
-- Gate B 可以基于本文档进入后续实现前评估；
+- 桥接框架：已实现运行时桥接层（Runtime Bridge Harness）的 mock/offline 验证框架；
+- 状态同步：支持在 mock 环境下模拟 Hermes 消息的双向交付与状态生命周期同步；
+- 验证隔离：通过独立的验证工具（harness）在不侵入 Hermes 源码的前提下验证桥接逻辑。
+
+注意：本阶段依然**不产出**生产环境的 live transport 逻辑，也不包含对 Hermes 的补丁（Patch）。
 - 本仓库目前仍不提供 repo-owned runtime websocket bridge；
 - `--live-feishu` 的 placeholder 边界不因本文档而改变；
 - 任何后续实现必须先证明：它符合 wrapper-first、reversible、entity-first、SQLite reuse 与 failure ceiling 这五个冻结轴线。
