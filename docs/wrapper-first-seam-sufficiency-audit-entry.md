@@ -100,7 +100,7 @@ Every audit dimension must be assigned exactly one of these three status values:
 The overall sufficiency outcome is derived from the dimension statuses:
 
 - `wrapper-sufficient`: ALL dimensions pass with evidence.
-- `wrapper-sufficient-with-constraints` (DEPRECATED): No dimension fails, BUT at least one dimension has an explicit `constraint` with documented mitigation. This status is deprecated in favor of `wrapper-first-with-constraints` for the final recommendation.
+- Legacy deprecated constrained-wrapper label: No dimension fails, BUT at least one dimension has an explicit `constraint` with documented mitigation. The final recommendation must use `wrapper-first-with-constraints` instead.
 - `wrapper-insufficient`: ANY dimension fails, OR evidence is contradictory/inconclusive.
 
 ### Decision thresholds
@@ -220,20 +220,23 @@ The overall sufficiency outcome is derived from the dimension statuses:
 
 ### Trigger 1: Cannot observe stable final replies
 
-- **Triggered**: `no`
+- **Triggered**: `inconclusive`
 - **Definition check**: 该触发器要求 external wrapper **无法稳定**导出 `source_platform + session_key + hermes_message_id + final_reply_index`。
 - **Evidence**:
   - `## Dimension findings` → `### 1. Stable final reply observation`
   - `.sisyphus/evidence/plan-7/task-5-cli-harness-happy.json`
   - `tests/test_runtime_event.py::test_minimal_text_event_normalizes`
   - `docs/phase-3-runtime-bridge-design.md` 286-289
-- **Assessment**: 当前已有 harness/test 级别证据证明 final-reply normalization 契约在受控环境中成立，因此**尚无**“无法观察稳定最终回复边界”的实证失败。缺口在于 real external wrapper observation 仍是 `assumption-to-validate`，所以本项不能升级成强 `pass` 证据，但也不能把尚未发生的 live failure 直接写成 `yes`。
+- **Evidence source**: 受控 harness/test normalization 证据，仅证明 fixture/mock 入口上的 final-reply contract；不包含真实 Hermes websocket outbound observation。
+- **Threshold for `no`**: 需要 real external wrapper observation 直接证明在代表性 websocket outbound 流量下，`source_platform + session_key + hermes_message_id + final_reply_index` 可稳定导出。
+- **Failure condition for `yes`**: 需要直接证据证明 external wrapper **无法稳定**观察最终回复边界，或该边界在真实 wrapper 场景下系统性丢失/漂移。
+- **Assessment**: 当前已有 harness/test 级别证据证明 final-reply normalization 契约在受控环境中成立，因此尚未实证命中 `yes`。但由于 real external wrapper observation 仍是 `assumption-to-validate`，现有材料也不足以客观排除该触发器；因此本项必须写成 `inconclusive`，而不是 `no`。
 - **Consequence**: 若后续 real wrapper evidence 证明无法稳定观察最终回复边界，则该触发器立即转为 `yes`，并对 Dimension 1 形成直接 `fail`，整体结论升级为 `wrapper-insufficient`。
-- **Recommendation impact**: 当前允许保留 wrapper-first 方向，但 recommendation 必须显式写明“stable final reply observation 仍待 real wrapper 验证”。
+- **Recommendation impact**: 当前允许保留 wrapper-first 方向，但 recommendation 必须显式写明“stable final reply observation 仍待 real wrapper 验证”，且不能把本项表述成 plain continuation 所需的已排除风险。
 
 ### Trigger 2: Cannot suppress or safely coexist with original text send
 
-- **Triggered**: `no`
+- **Triggered**: `inconclusive`
 - **Definition check**: 该触发器要求 wrapper 既无法抑制原始文本，又无法把 dual-delivery 限制在受控验证阶段，导致双发成为常态产品行为。
 - **Evidence**:
   - `## Dimension findings` → `### 3. Native text coexistence/suppression`
@@ -241,9 +244,12 @@ The overall sufficiency outcome is derived from the dimension statuses:
   - `.sisyphus/evidence/plan-7/task-5-cli-harness-disabled.json`
   - `tests/test_runtime_bridge_cli.py::test_runtime_bridge_harness_controlled_dual_writes_summary`
   - `docs/phase-3-runtime-bridge-design.md` 61-69, 290-292
-- **Assessment**: 现有设计冻结与 harness evidence 一致表明 dual-delivery 目前仅用于 validation/evidence gathering，不是产品默认路径；因此“dual-delivery 已经变成常态产品行为”的触发条件并未被实证命中。
+- **Evidence source**: 设计冻结文本 + harness 受控 dual-delivery evidence，只证明 validation-only 边界在离线/受控环境中成立。
+- **Threshold for `no`**: 需要 external wrapper 层面的直接证据，证明原始文本可被稳定抑制，或 dual-delivery 能在真实运行中持续受限于 validation-only 边界而不会滑入默认产品行为。
+- **Failure condition for `yes`**: 需要直接证据证明 wrapper 既无法抑制原始文本，又无法把 dual-delivery 限制在受控验证阶段，导致双发成为常态产品行为。
+- **Assessment**: 现有设计冻结与 harness evidence 一致表明 dual-delivery 目前**被定义为** validation/evidence gathering 工具，而不是产品默认路径，因此尚未实证命中 `yes`。但当前材料仍缺少 external wrapper 层面的直接 suppression/coexistence 证据，无法客观排除未来只能依赖长期双发的可能，因此本项也必须写成 `inconclusive`。
 - **Consequence**: 若后续 wrapper 只能依赖长期双发才能工作，且无法继续维持 validation-only 边界，则该触发器转为 `yes`，必须停止把 wrapper-first 当默认产品路线。
-- **Recommendation impact**: recommendation 必须继续禁止把 dual-delivery 写成默认产品行为，即使当前本触发器为 `no`。
+- **Recommendation impact**: recommendation 必须继续禁止把 dual-delivery 写成默认产品行为，并把“suppression/coexistence 仍待 wrapper-level 直接验证”列为继续推进的显式约束，而不是把当前状态当成 plain continuation 许可。
 
 ### Trigger 3: Preventing duplicate native text requires Hermes source patching
 
@@ -320,7 +326,7 @@ The overall sufficiency outcome is derived from the dimension statuses:
 - **Rule restatement**: 如果任一 trigger 从当前的 `no` / `inconclusive` 转为 `yes`，必须停止把 wrapper-first 当作默认实现路径。
 - **Required response**: 停下当前 wrapper-first 推进，产出 **Forced-Seam Decision Memo**，说明首选接缝为何失效、为何新接缝更可逆、以及如何安装 / 审计 / 回滚。
 - **Explicit boundary**: Forced-Seam Decision Memo 是**未来单独计划项**，不是 Plan 9 的实现任务；本审计只负责定义 stop conditions 和 recommendation 约束，不设计 forced seam，也不提议 Hermes patch。
-- **Recommendation consistency**: 由于 Trigger 3 / 4 / 6 / 7 当前均为 `inconclusive`，而 Trigger 1 / 2 / 5 仅能说明“尚未实证触发”，当前 recommendation 只能落在 **wrapper-first-with-constraints**，不能落在无条件继续或生产就绪表述。
+- **Recommendation consistency**: 由于 Trigger 1 / 2 / 3 / 4 / 6 / 7 当前均为 `inconclusive`，且只有 Trigger 5 被明确排除，当前 recommendation 只能落在 **wrapper-first-with-constraints**，不能落在无条件继续或生产就绪表述。这里的 `inconclusive` 代表“尚未证明必须 forced seam”，但也同样代表“尚未证明 wrapper-first 风险已被排除”，因此它们产生的是推进约束，而不是立即切换接缝的既成结论。
 
 ## Recommendation
 
@@ -328,14 +334,15 @@ The overall sufficiency outcome is derived from the dimension statuses:
 `wrapper-first-with-constraints`
 
 ### Rationale
-Dimension evaluation results show that while the core integration logic is sound and the reversibility red line is preserved (`pass`), 6 out of 7 dimensions are marked as `constraint`. Furthermore, 4 out of 7 escalation triggers are `inconclusive`. This pattern indicates that while there are no immediate blockers (`fail`) preventing the wrapper-first approach, the project lacks direct runtime evidence for key production behaviors like real-world websocket observation, recipient extraction, and stable text suppression. Therefore, an unconditional "continue-wrapper-first" (which would require all dimensions to `pass`) is not supported, and the path forward must be guided by explicit constraints and monitoring.
+Dimension evaluation results show that while the core integration logic is sound and the reversibility red line is preserved (`pass`), 6 out of 7 dimensions are marked as `constraint`. Furthermore, 6 out of 7 escalation triggers are `inconclusive`, with only Trigger 5 currently ruled out by direct reversibility evidence. This pattern indicates that there are no immediate blockers (`fail`) or proven forced-seam conditions (`yes`) today, but the project still lacks direct runtime evidence for key production behaviors like real-world websocket observation, recipient extraction, and stable text suppression/coexistence. Therefore, an unconditional "continue-wrapper-first" is not supported, while an immediate forced-seam decision would also overclaim beyond the current evidence. The correct posture is to continue only under explicit constraints, entry criteria, and stop-rules.
 
 ### Constraints list
 - **Observation Constraint**: Stable final reply observation is currently verified at the fixture/harness level only. Success in real-world Hermes websocket outbound traffic remains an assumption to be validated.
+- **Trigger-objectivity Constraint**: Trigger 1 and Trigger 2 are `inconclusive` because current evidence is strong enough to reject immediate `yes`, but not strong enough to justify `no`. That means they constrain continuation and require explicit next-step proof, rather than forcing a seam change now.
 - **Identity Constraint**: Recipient identity extraction (ID and type) from the websocket stream has not been proven. The current proof only shows that the send path requires these identifiers.
 - **Suppression Constraint**: Native text suppression without core repository modifications is not yet demonstrated. Dual-delivery is strictly a validation tool and must not become the product default.
 - **Ceiling Constraint**: The failure ceiling contract for ambiguous send/update operations (converging to `reconciliation_required`) lacks direct runtime verification in a wrapper context.
-- **Monitoring Requirement**: All `inconclusive` triggers (3, 4, 6, and 7) must be actively monitored. Any shift to a `yes` status requires an immediate halt.
+- **Monitoring Requirement**: All `inconclusive` triggers (1, 2, 3, 4, 6, and 7) must be actively monitored. Any shift to a `yes` status requires an immediate halt.
 
 ### Stop conditions
 If any of the following triggers transition to `yes`, the wrapper-first approach must be immediately halted, and a **Forced-Seam Decision Memo** must be created:
