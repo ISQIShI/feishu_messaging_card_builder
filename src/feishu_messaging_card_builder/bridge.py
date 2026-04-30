@@ -106,7 +106,11 @@ class BridgeOrchestrator:
         self._parsed_cache = {}
 
     def process_fixture(self, fixture_path: str | Path, recipient: str) -> ProcessResult:
-        parsed = parse_final_reply(self._load_fixture(fixture_path))
+        fixture = cast(DeliveryFixture, cast(object, self._load_fixture(fixture_path)))
+        return self.process_delivery(fixture, recipient)
+
+    def process_delivery(self, fixture: DeliveryFixture, recipient: str) -> ProcessResult:
+        parsed = parse_final_reply(dict(fixture))
         content_hash = self._content_hash(parsed.content_markdown)
         get_or_create_result = self._state.get_or_create(self._delivery_fixture(parsed), content_hash)
         record = get_or_create_result.record
