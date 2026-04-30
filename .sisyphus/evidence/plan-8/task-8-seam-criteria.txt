@@ -1,0 +1,3 @@
+cleanup_gate_present=true
+forbidden_implementation_scope=0
+all required criteria present
