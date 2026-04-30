@@ -1,5 +1,9 @@
 # Wrapper-First Seam Sufficiency Audit Entry
 
+## Archival status note
+
+本文件保留为历史性的审计入口清单与证据盘点，不属于当前 closeout contradiction repair 的权威结论面。它本身**不**授权 roadmap advancement、当前 closeout 通过，或任何超出窄范围修复的执行承诺。
+
 ## Scope and exclusions
 
 ## Evidence inputs
