@@ -125,7 +125,7 @@ def test_reversibility_disabled_check(tmp_path: Path) -> None:
     # Save evidence to specified location
     evidence_path = ROOT / ".sisyphus" / "evidence" / "plan-7" / "task-6-reversibility-disabled.json"
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
-    evidence_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    _ = evidence_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     assert result.returncode == 0
     assert payload["bridge_disabled"] is True
@@ -151,7 +151,7 @@ def test_forbidden_install_surfaces_absent() -> None:
         "feishu_card_build",
     ]
 
-    found = []
+    found: list[str] = []
     for f in forbidden_files:
         if (ROOT / f).exists():
             found.append(f)
@@ -162,7 +162,7 @@ def test_forbidden_install_surfaces_absent() -> None:
     # Save evidence
     evidence_path = ROOT / ".sisyphus" / "evidence" / "plan-7" / "task-6-forbidden-surfaces.txt"
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
-    evidence_path.write_text(f"forbidden_surfaces={json.dumps(found)}", encoding="utf-8")
+    _ = evidence_path.write_text(f"forbidden_surfaces={json.dumps(found)}", encoding="utf-8")
 
     assert found == [], f"Forbidden surfaces found: {found}"
 

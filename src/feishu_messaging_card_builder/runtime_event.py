@@ -1,4 +1,4 @@
-"""Minimal runtime event normalization for Phase 1 bridge input."""
+"""Minimal runtime event normalization for Phase 3 bridge input."""
 
 # pyright: reportMissingTypeStubs=false
 
@@ -13,6 +13,8 @@ from feishu_messaging_card_builder.state import DeliveryFixture
 
 
 class EventClassification(StrEnum):
+    """Classification of runtime events based on support status."""
+
     SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
     MALFORMED = "malformed"
@@ -21,6 +23,11 @@ class EventClassification(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class NormalizedRuntimeEvent:
+    """Normalized runtime event for bridge processing.
+
+    Contains all required fields for mapping to DeliveryFixture and recipient info.
+    """
+
     source_platform: str
     session_key: str
     hermes_message_id: str
@@ -30,6 +37,7 @@ class NormalizedRuntimeEvent:
     recipient_type: str
 
     def to_delivery_fixture(self) -> DeliveryFixture:
+        """Convert this event to a DeliveryFixture for bridge processing."""
         return cast(
             DeliveryFixture,
             cast(
@@ -45,6 +53,7 @@ class NormalizedRuntimeEvent:
         )
 
     def recipient_tuple(self) -> tuple[str, str]:
+        """Return recipient as (recipient_id, recipient_type) tuple."""
         return (self.recipient_id, self.recipient_type)
 
 

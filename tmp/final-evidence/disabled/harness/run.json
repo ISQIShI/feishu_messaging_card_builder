@@ -1,0 +1,21 @@
+{
+  "normalized_event_count": 1,
+  "native_delivery_recorded": true,
+  "card_create_count": 0,
+  "card_send_count": 0,
+  "card_update_count": 0,
+  "entity_first": true,
+  "classification": "supported",
+  "status": "native_delivery_recorded",
+  "live": false,
+  "bridge_disabled": true,
+  "delivery_mode": "disabled",
+  "bridge_message_id_sha256": null,
+  "card_id_sha256": null,
+  "feishu_message_id_sha256": null,
+  "hermes_message_id_sha256": "0a5a841d421bd45a2909470e91f2a972e3aeb433f858d7c7c3bab9e15fe2707a",
+  "recipient_id_sha256": "e19ca449b04859781607c1ea68095ad354c56ec9c4cfffa91179854eab99da2c",
+  "sequence": null,
+  "is_duplicate": false,
+  "recovery_instruction": null
+}

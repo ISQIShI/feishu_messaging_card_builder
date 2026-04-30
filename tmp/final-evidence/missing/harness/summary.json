@@ -1,0 +1,26 @@
+{
+  "normalized_event_count": 0,
+  "native_delivery_recorded": false,
+  "card_create_count": 0,
+  "card_send_count": 0,
+  "card_update_count": 0,
+  "entity_first": true,
+  "classification": "credential_guard",
+  "status": "missing_live_env",
+  "live": false,
+  "bridge_disabled": false,
+  "delivery_mode": "controlled-dual",
+  "bridge_message_id_sha256": null,
+  "card_id_sha256": null,
+  "feishu_message_id_sha256": null,
+  "hermes_message_id_sha256": null,
+  "recipient_id_sha256": null,
+  "sequence": null,
+  "is_duplicate": false,
+  "recovery_instruction": null,
+  "credential_check": "missing",
+  "missing_credential_keys": [
+    "FEISHU_APP_ID",
+    "FEISHU_APP_SECRET"
+  ]
+}
