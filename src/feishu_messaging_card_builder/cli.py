@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .bridge import BridgeOrchestrationError, BridgeOrchestrator, redact_failure_text
 from .feishu_client import FeishuCardClient, MockFeishuTransport
+from .runtime_bridge import CredentialGuard, DeliveryMode, RuntimeBridge, normalize_delivery_mode
 from .state import BridgeStateManager
 
 
@@ -30,6 +31,10 @@ class CLIArgs(Protocol):
     evidence: str
     recipient: str
     bridge_message_id: str
+    fixture: str
+    delivery_mode: str
+    evidence_dir: str
+    require_live_env: bool
 
 
 def _ensure_live_guard(live_feishu: bool) -> bool:
@@ -46,6 +51,52 @@ def _build_stack(db_path: str) -> tuple[BridgeStateManager, MockFeishuTransport,
     client = FeishuCardClient(transport)
     orchestrator = BridgeOrchestrator(state, client)
     return state, transport, client, orchestrator
+
+
+def _runtime_bridge_harness_evidence(result: object, *, delivery_mode: str) -> dict[str, object]:
+    typed_result = cast("RuntimeBridgeResultLike", result)
+    normalized_mode = normalize_delivery_mode(delivery_mode)
+    return {
+        "normalized_event_count": typed_result.normalized_event_count,
+        "native_delivery_recorded": typed_result.native_delivery_recorded,
+        "card_create_count": typed_result.card_create_count,
+        "card_send_count": typed_result.card_send_count,
+        "card_update_count": typed_result.card_update_count,
+        "entity_first": typed_result.entity_first,
+        "classification": typed_result.classification,
+        "status": typed_result.status,
+        "live": False,
+        "bridge_disabled": normalized_mode is DeliveryMode.DISABLED,
+        "delivery_mode": normalized_mode.value,
+        "bridge_message_id_sha256": typed_result.bridge_message_id_sha256,
+        "card_id_sha256": typed_result.card_id_sha256,
+        "feishu_message_id_sha256": typed_result.feishu_message_id_sha256,
+        "hermes_message_id_sha256": typed_result.hermes_message_id_sha256,
+        "recipient_id_sha256": typed_result.recipient_id_sha256,
+        "sequence": typed_result.sequence,
+        "is_duplicate": typed_result.is_duplicate,
+        "recovery_instruction": typed_result.recovery_instruction,
+    }
+
+
+class RuntimeBridgeResultLike(Protocol):
+    normalized_event_count: int
+    native_delivery_recorded: bool
+    card_create_count: int
+    card_send_count: int
+    card_update_count: int
+    entity_first: bool
+    classification: str
+    status: str
+    live: bool
+    bridge_message_id_sha256: str | None
+    card_id_sha256: str | None
+    feishu_message_id_sha256: str | None
+    hermes_message_id_sha256: str | None
+    recipient_id_sha256: str | None
+    sequence: int | None
+    is_duplicate: bool
+    recovery_instruction: str | None
 
 
 def _write_json(path: str | Path, payload: object) -> None:
@@ -233,6 +284,55 @@ def _inspect_state_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _runtime_bridge_harness_command(args: argparse.Namespace) -> int:
+    typed_args = cast(CLIArgs, cast(object, args))
+    evidence_dir = Path(typed_args.evidence_dir)
+    summary_path = evidence_dir / "summary.json"
+    run_evidence_path = evidence_dir / "run.json"
+
+    if typed_args.require_live_env:
+        ok, missing_keys = CredentialGuard.check_live_credentials()
+        if not ok:
+            evidence = {
+                "normalized_event_count": 0,
+                "native_delivery_recorded": False,
+                "card_create_count": 0,
+                "card_send_count": 0,
+                "card_update_count": 0,
+                "entity_first": True,
+                "classification": "credential_guard",
+                "status": "missing_live_env",
+                "live": False,
+                "bridge_disabled": normalize_delivery_mode(typed_args.delivery_mode) is DeliveryMode.DISABLED,
+                "delivery_mode": normalize_delivery_mode(typed_args.delivery_mode).value,
+                "bridge_message_id_sha256": None,
+                "card_id_sha256": None,
+                "feishu_message_id_sha256": None,
+                "hermes_message_id_sha256": None,
+                "recipient_id_sha256": None,
+                "sequence": None,
+                "is_duplicate": False,
+                "recovery_instruction": None,
+                "credential_check": "missing",
+                "missing_credential_keys": missing_keys,
+            }
+            _write_json(summary_path, evidence)
+            _write_json(run_evidence_path, evidence)
+            diagnostic = CredentialGuard.diagnostic_message()
+            if diagnostic:
+                print(diagnostic, file=sys.stderr)
+            return 1
+
+    fixture_payload = cast(dict[str, object], json.loads(Path(typed_args.fixture_path).read_text(encoding="utf-8")))
+    _state, _transport, _client, orchestrator = _build_stack(typed_args.db)
+    runtime_bridge = RuntimeBridge(orchestrator, typed_args.delivery_mode)
+    result = runtime_bridge.process_payload(fixture_payload)
+    evidence = _runtime_bridge_harness_evidence(result, delivery_mode=typed_args.delivery_mode)
+    _write_json(summary_path, evidence)
+    _write_json(run_evidence_path, evidence)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="feishu-messaging-card-builder",
@@ -279,6 +379,32 @@ def build_parser() -> argparse.ArgumentParser:
     _ = inspect_parser.add_argument("--raw", action="store_true", help="Print full internal state for local debugging.")
     _ = inspect_parser.add_argument("--debug", action="store_true", help="Alias for --raw for local debugging.")
     inspect_parser.set_defaults(func=_inspect_state_command)
+
+    runtime_bridge_parser = subparsers.add_parser(
+        "runtime-bridge",
+        help="Runtime bridge commands.",
+    )
+    runtime_bridge_subparsers = runtime_bridge_parser.add_subparsers(dest="runtime_bridge_command", required=True)
+
+    harness_parser = runtime_bridge_subparsers.add_parser(
+        "harness",
+        help="Run the controlled runtime bridge harness.",
+    )
+    _ = harness_parser.add_argument("--fixture", required=True, dest="fixture_path", help="Path to the fixture JSON file.")
+    _ = harness_parser.add_argument("--db", required=True, help="SQLite bridge database path.")
+    _ = harness_parser.add_argument(
+        "--delivery-mode",
+        default="default",
+        choices=[mode.value for mode in DeliveryMode],
+        help="Runtime delivery mode.",
+    )
+    _ = harness_parser.add_argument("--evidence-dir", required=True, help="Directory for evidence output.")
+    _ = harness_parser.add_argument(
+        "--require-live-env",
+        action="store_true",
+        help="Require live Feishu credentials before processing.",
+    )
+    harness_parser.set_defaults(func=_runtime_bridge_harness_command)
 
     return parser
 
