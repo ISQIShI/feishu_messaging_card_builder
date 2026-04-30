@@ -31,6 +31,7 @@ _SENSITIVE_FAILURE_VALUE_PATTERN = re.compile(
 _BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+-]+")
 _URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
 _LONG_TOKEN_PATTERN = re.compile(r"\b[A-Za-z0-9._~+-]{16,}\b")
+_ID_LABEL_PATTERN = re.compile(r"(?i)\b(bridge_message_id|card_id|feishu_message_id)\b\s*([:=])\s*[^;,\s]+")
 
 
 @dataclass(slots=True)
@@ -79,6 +80,18 @@ class BridgeOrchestrationError(RuntimeError):
         self.mock_calls = mock_calls or []
 
 
+def redact_failure_text(text: str) -> str:
+    redacted = _ID_LABEL_PATTERN.sub(lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]", text)
+    redacted = _SENSITIVE_FAILURE_VALUE_PATTERN.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
+        redacted,
+    )
+    redacted = _BEARER_PATTERN.sub("Bearer [REDACTED]", redacted)
+    redacted = _URL_PATTERN.sub("[REDACTED_URL]", redacted)
+    redacted = _LONG_TOKEN_PATTERN.sub("[REDACTED]", redacted)
+    return redacted
+
+
 @final
 class BridgeOrchestrator:
     """Coordinate parser, renderer, Feishu transport, and SQLite bridge state."""
@@ -106,6 +119,10 @@ class BridgeOrchestrator:
                 return self._process_changed_content(record, parsed, recipient)
             if record["status"] in {Status.SENT.value, Status.UPDATED.value}:
                 return self._duplicate_result(record)
+            if record["status"] == Status.UPDATE_FAILED.value:
+                return self._terminal_result(record)
+            if record["status"] == Status.EXPIRED.value:
+                return self._expired_result(record)
             if record["status"] == Status.RECONCILIATION_REQUIRED.value:
                 return self._reconciliation_result(record)
             if record["card_id"] and record["status"] in {
@@ -123,10 +140,7 @@ class BridgeOrchestrator:
     def update_card(self, bridge_message_id: str) -> UpdateResult:
         record = self._state.materialize_expired(bridge_message_id)
         if record is None:
-            raise BridgeOrchestrationError(
-                f"No bridge record found for {bridge_message_id}",
-                bridge_message_id=bridge_message_id,
-            )
+            raise BridgeOrchestrationError("No bridge record found for the requested bridge message")
 
         previous_sequence = int(record["version"])
         if record["status"] == Status.EXPIRED.value:
@@ -145,18 +159,12 @@ class BridgeOrchestrator:
         }:
             raise BridgeOrchestrationError(
                 "Only sent, updated, or update_failed records can be updated",
-                bridge_message_id=bridge_message_id,
-                card_id=record["card_id"],
                 status=record["status"],
             )
 
         card_id = record["card_id"]
         if not card_id:
-            raise BridgeOrchestrationError(
-                f"Record {bridge_message_id} is missing card_id",
-                bridge_message_id=bridge_message_id,
-                status=record["status"],
-            )
+            raise BridgeOrchestrationError("Bridge record is missing card_id", status=record["status"])
 
         parsed = self._rebuild_parsed_reply_from_record(record)
         updated_parsed = self._updated_parsed_reply(parsed)
@@ -174,6 +182,33 @@ class BridgeOrchestrator:
                 version=new_sequence,
                 failure_reason=None,
             )
+        except BridgeStateError:
+            recovery_instruction = (
+                "Card update succeeded remotely but local persistence failed. Mark this bridge_message_id as "
+                "reconciliation_required and reconcile the accepted Feishu card version before retrying "
+                "further updates."
+            )
+            try:
+                self._state.update_status(
+                    bridge_message_id,
+                    Status.RECONCILIATION_REQUIRED,
+                    sequence=new_sequence,
+                    version=new_sequence,
+                    failure_reason=recovery_instruction,
+                )
+            except BridgeStateError as exc:
+                raise BridgeOrchestrationError(
+                    recovery_instruction,
+                    status=Status.RECONCILIATION_REQUIRED.value,
+                    mock_calls=self._mock_calls_since(call_count_before),
+                ) from exc
+            return UpdateResult(
+                bridge_message_id=bridge_message_id,
+                previous_sequence=previous_sequence,
+                new_sequence=new_sequence,
+                status=Status.RECONCILIATION_REQUIRED.value,
+                mock_calls=self._mock_calls_since(call_count_before),
+            )
         except FeishuApiError as exc:
             next_status = (
                 Status.UPDATE_FAILED
@@ -186,7 +221,7 @@ class BridgeOrchestrator:
                 failure_reason=self._format_feishu_error_reason(exc),
             )
             raise BridgeOrchestrationError(
-                f"Feishu update failed for {bridge_message_id}",
+                "Feishu update failed",
                 bridge_message_id=bridge_message_id,
                 card_id=card_id,
                 status=next_status.value,
@@ -244,8 +279,7 @@ class BridgeOrchestrator:
         card_id = record["card_id"]
         if card_id is None:
             raise BridgeOrchestrationError(
-                f"Record {record['bridge_message_id']} is missing card_id for retry",
-                bridge_message_id=record["bridge_message_id"],
+                "Bridge record is missing card_id for retry",
                 status=record["status"],
             )
 
@@ -285,7 +319,7 @@ class BridgeOrchestrator:
                 failure_reason=self._format_feishu_error_reason(exc),
             )
             raise BridgeOrchestrationError(
-                f"Feishu send failed for {bridge_message_id}; retry with the preserved card_id",
+                "Feishu send failed; retry with the preserved created card",
                 bridge_message_id=bridge_message_id,
                 card_id=card_id,
                 status=Status.SEND_FAILED.value,
@@ -395,6 +429,16 @@ class BridgeOrchestrator:
         }:
             updated_record = self._update_record_content(record, parsed)
             update_result = self.update_card(updated_record["bridge_message_id"])
+            if update_result.status == Status.RECONCILIATION_REQUIRED.value:
+                refreshed_record = self._state.get_record(
+                    updated_record["bridge_message_id"], include_sensitive=True
+                )
+                if refreshed_record is None:
+                    raise BridgeOrchestrationError(
+                        "Bridge record disappeared after update retry",
+                        status=Status.RECONCILIATION_REQUIRED.value,
+                    )
+                return self._reconciliation_result(refreshed_record)
             return ProcessResult(
                 bridge_message_id=update_result.bridge_message_id,
                 card_id=updated_record["card_id"],
@@ -418,9 +462,7 @@ class BridgeOrchestrator:
         refreshed = self._state.get_record(record["bridge_message_id"], include_sensitive=True)
         if refreshed is None:
             raise BridgeOrchestrationError(
-                f"Record {record['bridge_message_id']} disappeared after content update",
-                bridge_message_id=record["bridge_message_id"],
-                card_id=record["card_id"],
+                "Bridge record disappeared after content update",
                 status=record["status"],
             )
         return refreshed
@@ -567,14 +609,7 @@ class BridgeOrchestrator:
 
     @staticmethod
     def _redact_failure_text(text: str) -> str:
-        redacted = _SENSITIVE_FAILURE_VALUE_PATTERN.sub(
-            lambda match: f"{match.group(1)}{match.group(2)}[REDACTED]",
-            text,
-        )
-        redacted = _BEARER_PATTERN.sub("Bearer [REDACTED]", redacted)
-        redacted = _URL_PATTERN.sub("[REDACTED_URL]", redacted)
-        redacted = _LONG_TOKEN_PATTERN.sub("[REDACTED]", redacted)
-        return redacted
+        return redact_failure_text(text)
 
     @staticmethod
     def _rebuild_parsed_reply_from_record(record: BridgeRecord) -> ParsedFinalReply:
@@ -613,4 +648,5 @@ __all__ = [
     "BridgeOrchestrator",
     "ProcessResult",
     "UpdateResult",
+    "redact_failure_text",
 ]

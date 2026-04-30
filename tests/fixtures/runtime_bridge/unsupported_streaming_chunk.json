@@ -1,0 +1,10 @@
+{
+  "source_platform": "feishu",
+  "session_key": "mock-session-001",
+  "hermes_message_id": "test-hermes-msg-002",
+  "final_reply_index": 1,
+  "content_markdown": "Streaming chunk content that should be ignored.",
+  "recipient_id": "test-open-id-001",
+  "recipient_type": "open_id",
+  "streaming_chunk": true
+}

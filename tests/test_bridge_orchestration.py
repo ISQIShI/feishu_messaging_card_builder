@@ -357,6 +357,125 @@ def test_changed_content_expired_record_returns_expired_without_side_effect() ->
         temp_dir.cleanup()
 
 
+def test_unchanged_update_failed_replay_is_terminal_and_side_effect_free() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:update-failed-unchanged")
+        state.update_status(
+            first.bridge_message_id,
+            Status.UPDATE_FAILED,
+            card_id=first.card_id,
+            feishu_message_id=first.feishu_message_id,
+            sequence=1,
+            version=1,
+            failure_reason="FeishuApiError; status_code=410; summary=msg=stale sequence",
+        )
+
+        result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:update-failed-unchanged")
+
+        assert result.status == Status.UPDATE_FAILED.value
+        assert result.card_id == first.card_id
+        assert result.feishu_message_id == first.feishu_message_id
+        assert result.mock_calls == []
+        assert len(transport.calls) == 2
+    finally:
+        temp_dir.cleanup()
+
+
+def test_unchanged_expired_replay_is_side_effect_free() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:expired-unchanged")
+        with sqlite3.connect(Path(temp_dir.name) / "bridge.sqlite") as connection:
+            _ = connection.execute(
+                "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+                ("2000-01-01T00:00:00+00:00", first.bridge_message_id),
+            )
+
+        result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:expired-unchanged")
+        record = state.get_record(first.bridge_message_id)
+
+        assert result.status == Status.EXPIRED.value
+        assert result.card_id == first.card_id
+        assert result.mock_calls == []
+        assert len(transport.calls) == 2
+        assert record is not None
+        assert record["status"] == Status.EXPIRED.value
+    finally:
+        temp_dir.cleanup()
+
+
+def test_unchanged_reconciliation_required_replay_is_side_effect_free() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:reconcile-unchanged")
+        state.update_status(
+            first.bridge_message_id,
+            Status.RECONCILIATION_REQUIRED,
+            card_id=first.card_id,
+            feishu_message_id=first.feishu_message_id,
+            sequence=1,
+            version=1,
+            failure_reason="Manual reconciliation required before any further delivery action.",
+        )
+
+        result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:reconcile-unchanged")
+
+        assert result.status == Status.RECONCILIATION_REQUIRED.value
+        assert result.card_id == first.card_id
+        assert result.mock_calls == []
+        assert len(transport.calls) == 2
+    finally:
+        temp_dir.cleanup()
+
+
+def test_changed_content_update_failed_record_uses_update_path_without_resend() -> None:
+    temp_dir = tempfile.TemporaryDirectory()
+    try:
+        orchestrator, state, transport = build_orchestrator(temp_dir)
+
+        first = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:update-failed-changed")
+        state.update_status(
+            first.bridge_message_id,
+            Status.UPDATE_FAILED,
+            card_id=first.card_id,
+            feishu_message_id=first.feishu_message_id,
+            sequence=1,
+            version=1,
+            failure_reason="FeishuApiError; status_code=410; summary=msg=stale sequence",
+        )
+        changed_fixture = write_fixture(
+            Path(temp_dir.name),
+            "update-failed-changed.json",
+            content_markdown="Changed content after update_failed should reuse update path only.",
+        )
+
+        result = orchestrator.process_fixture(changed_fixture, "open_id:update-failed-changed")
+        record = state.get_record(first.bridge_message_id)
+        create_calls = [call for call in transport.calls if call["path"] == "/open-apis/cardkit/v1/cards"]
+        send_calls = [call for call in transport.calls if call["path"] == "/open-apis/im/v1/messages"]
+        update_calls = [call for call in transport.calls if call["method"] == "PUT"]
+
+        assert result.status == Status.UPDATED.value
+        assert result.card_id == first.card_id
+        assert len(result.mock_calls) == 1
+        assert len(create_calls) == 1
+        assert len(send_calls) == 1
+        assert len(update_calls) == 1
+        assert update_calls[0]["body"]["sequence"] == 2
+        assert record is not None
+        assert record["status"] == Status.UPDATED.value
+        assert record["version"] == 2
+    finally:
+        temp_dir.cleanup()
+
+
 def test_create_success_send_failure_requires_reconciliation_on_retry() -> None:
     temp_dir = tempfile.TemporaryDirectory()
     try:

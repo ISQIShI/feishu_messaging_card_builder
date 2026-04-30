@@ -1,0 +1,9 @@
+{
+  "source_platform": "feishu",
+  "session_key": "mock-session-001",
+  "hermes_message_id": "test-hermes-msg-005",
+  "final_reply_index": 1,
+  "content_markdown": "Test content for minimal event.",
+  "recipient_id": "test-open-id-001",
+  "recipient_type": "open_id"
+}

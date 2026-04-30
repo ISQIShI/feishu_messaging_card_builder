@@ -267,6 +267,74 @@ def test_migrates_legacy_schema_in_place(tmp_path: Path) -> None:
     assert record["updatable_until"] == expected_updatable_until
 
 
+def test_get_record_for_inspect_redacts_sensitive_fields() -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id="hermes-inspect")
+        record = manager.get_or_create(fixture, content_hash(fixture["content_markdown"])).record
+
+        inspected = manager.get_record_for_inspect(record["bridge_message_id"])
+
+        assert inspected is not None
+        assert inspected["bridge_message_id"] != record["bridge_message_id"]
+        assert inspected["idempotency_key"] != record["idempotency_key"]
+        assert inspected["session_key"] != record["session_key"]
+        assert inspected["hermes_message_id"] != record["hermes_message_id"]
+        assert "content_markdown" not in inspected
+        assert "card_id" not in inspected
+        assert "feishu_message_id" not in inspected
+        assert "failure_reason" not in inspected
+    finally:
+        temp_dir.cleanup()
+
+
+def test_list_records_for_inspect_redacts_sensitive_fields() -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id="hermes-list")
+        record = manager.get_or_create(fixture, content_hash(fixture["content_markdown"])).record
+        manager.update_status(record["bridge_message_id"], Status.SEND_FAILED, failure_reason="tenant=abc token=secret")
+
+        records = manager.list_records_for_inspect()
+
+        assert len(records) == 1
+        inspected = records[0]
+        assert inspected["bridge_message_id"] != record["bridge_message_id"]
+        assert inspected["idempotency_key"] != record["idempotency_key"]
+        assert inspected["session_key"] != record["session_key"]
+        assert inspected["hermes_message_id"] != record["hermes_message_id"]
+        assert "content_markdown" not in inspected
+        assert "card_id" not in inspected
+        assert "feishu_message_id" not in inspected
+        assert "failure_reason" not in inspected
+    finally:
+        temp_dir.cleanup()
+
+
+def test_lazy_expiry_materialization_stays_safe() -> None:
+    manager, temp_dir = manager_for_temp_db()
+    try:
+        fixture = build_fixture(hermes_message_id="hermes-expire-inspect")
+        record = manager.get_or_create(fixture, content_hash(fixture["content_markdown"])).record
+        manager.update_status(record["bridge_message_id"], Status.SENT, card_id="card_123", feishu_message_id="om_123")
+        expired_timestamp = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(timespec="seconds")
+        with sqlite3.connect(Path(temp_dir.name) / "bridge.sqlite") as connection:
+            _ = connection.execute(
+                "UPDATE card_deliveries SET updatable_until = ? WHERE bridge_message_id = ?",
+                (expired_timestamp, record["bridge_message_id"]),
+            )
+
+        inspected = manager.get_record_for_inspect(record["bridge_message_id"])
+
+        assert inspected is not None
+        assert inspected["status"] == Status.EXPIRED.value
+        assert "card_id" not in inspected
+        assert "feishu_message_id" not in inspected
+        assert "content_markdown" not in inspected
+    finally:
+        temp_dir.cleanup()
+
+
 def test_updatable_window_helpers_reflect_expiry() -> None:
     manager, temp_dir = manager_for_temp_db()
     try:

@@ -198,9 +198,9 @@ class BridgeStateManager:
                 )
 
             if cursor.rowcount != 1:
-                raise BridgeStateError(f"No record found for bridge_message_id={bridge_message_id}")
+                raise BridgeStateError("No record found for the requested bridge message")
         except sqlite3.Error as exc:
-            raise BridgeStateError(f"Failed to update state for {bridge_message_id}") from exc
+            raise BridgeStateError("Failed to update bridge state") from exc
 
     def get_record(self, bridge_message_id: str, *, include_sensitive: bool = True) -> BridgeRecord | None:
         try:
@@ -213,29 +213,29 @@ class BridgeStateManager:
                     ).fetchone(),
                 )
         except sqlite3.Error as exc:
-            raise BridgeStateError(f"Failed to fetch state for {bridge_message_id}") from exc
+            raise BridgeStateError("Failed to fetch bridge state") from exc
 
         if row is None:
             return None
         return self._row_to_dict(row, include_sensitive=include_sensitive)
 
     def get_record_for_inspect(self, bridge_message_id: str) -> BridgeRecord | None:
-        record = self.get_record(bridge_message_id, include_sensitive=False)
+        record = self.get_record(bridge_message_id, include_sensitive=True)
         if record is None:
             return None
-        return self._materialize_expired_record(record)
+        return self._materialize_expired_record(record, include_sensitive=False)
 
     def is_updatable(self, bridge_message_id: str) -> bool:
         record = self.get_record(bridge_message_id)
         if record is None:
-            raise BridgeStateError(f"No record found for bridge_message_id={bridge_message_id}")
+            raise BridgeStateError("No record found for the requested bridge message")
 
         return not self._is_timestamp_expired(record["updatable_until"])
 
     def is_expired(self, bridge_message_id: str) -> bool:
         record = self.get_record(bridge_message_id)
         if record is None:
-            raise BridgeStateError(f"No record found for bridge_message_id={bridge_message_id}")
+            raise BridgeStateError("No record found for the requested bridge message")
 
         return self._is_timestamp_expired(record["updatable_until"])
 
@@ -254,7 +254,10 @@ class BridgeStateManager:
         return [self._row_to_dict(row, include_sensitive=include_sensitive) for row in rows]
 
     def list_records_for_inspect(self) -> list[BridgeRecord]:
-        return [self._materialize_expired_record(record) for record in self.list_records(include_sensitive=False)]
+        return [
+            self._materialize_expired_record(record, include_sensitive=False)
+            for record in self.list_records(include_sensitive=True)
+        ]
 
     def materialize_expired(self, bridge_message_id: str) -> BridgeRecord | None:
         record = self.get_record(bridge_message_id, include_sensitive=True)
@@ -379,25 +382,41 @@ class BridgeStateManager:
     def _is_timestamp_expired(timestamp: str) -> bool:
         return datetime.now(timezone.utc) > datetime.fromisoformat(timestamp)
 
-    def _materialize_expired_record(self, record: BridgeRecord) -> BridgeRecord:
+    def _materialize_expired_record(self, record: BridgeRecord, *, include_sensitive: bool = True) -> BridgeRecord:
         if record["status"] == Status.EXPIRED.value:
-            return record
+            return record if include_sensitive else self._redact_record_for_inspect(record)
         if record["status"] not in {
             Status.SENT.value,
             Status.UPDATED.value,
             Status.UPDATE_FAILED.value,
         }:
-            return record
+            return record if include_sensitive else self._redact_record_for_inspect(record)
         if not self._is_timestamp_expired(record["updatable_until"]):
-            return record
+            return record if include_sensitive else self._redact_record_for_inspect(record)
 
         self.update_status(record["bridge_message_id"], Status.EXPIRED)
-        refreshed = self.get_record(record["bridge_message_id"], include_sensitive=True)
+        refreshed = self.get_record(record["bridge_message_id"], include_sensitive=include_sensitive)
         if refreshed is None:
-            raise BridgeStateError(
-                f"No record found for bridge_message_id={record['bridge_message_id']} after expiry materialization"
-            )
+            raise BridgeStateError("No record found after expiry materialization")
         return refreshed
+
+    @staticmethod
+    def _redact_record_for_inspect(record: BridgeRecord) -> BridgeRecord:
+        redacted: dict[str, object] = dict(record)
+        redacted["bridge_message_id"] = hashlib.sha256(record["bridge_message_id"].encode("utf-8")).hexdigest()
+        redacted["idempotency_key"] = hashlib.sha256(record["idempotency_key"].encode("utf-8")).hexdigest()
+        redacted["session_key"] = hashlib.sha256(record["session_key"].encode("utf-8")).hexdigest()
+        hermes_message_id = record["hermes_message_id"]
+        redacted["hermes_message_id"] = (
+            hashlib.sha256(hermes_message_id.encode("utf-8")).hexdigest()
+            if hermes_message_id is not None
+            else None
+        )
+        _ = redacted.pop("content_markdown", None)
+        _ = redacted.pop("card_id", None)
+        _ = redacted.pop("feishu_message_id", None)
+        _ = redacted.pop("failure_reason", None)
+        return cast(BridgeRecord, cast(object, redacted))
 
     @staticmethod
     def _url_safe_component(value: object) -> str:
@@ -428,7 +447,9 @@ class BridgeStateManager:
             "updatable_until": cast(str, row["updatable_until"]),
             "updated_at": cast(str, row["updated_at"]),
         }
-        return cast(BridgeRecord, cast(object, base_record))
+        if include_sensitive:
+            return cast(BridgeRecord, cast(object, base_record))
+        return BridgeStateManager._redact_record_for_inspect(cast(BridgeRecord, cast(object, base_record)))
 
 
 __all__ = [

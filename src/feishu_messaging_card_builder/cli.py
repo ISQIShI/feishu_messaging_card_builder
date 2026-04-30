@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import sys
-from collections.abc import Sequence
-from typing import Protocol, cast
+from collections.abc import Mapping, Sequence
+from typing import Protocol, TypedDict, cast
 from pathlib import Path
 
-from .bridge import BridgeOrchestrationError, BridgeOrchestrator
+from .bridge import BridgeOrchestrationError, BridgeOrchestrator, redact_failure_text
 from .feishu_client import FeishuCardClient, MockFeishuTransport
 from .state import BridgeStateManager
 
@@ -68,6 +70,8 @@ _SAFE_RECORD_FIELDS = {
     "idempotency_key",
 }
 
+_SENSITIVE_BODY_KEY_NAMES = frozenset({"content", "receive_id"})
+
 
 def _safe_record_view(record: dict[str, object]) -> dict[str, object]:
     return {key: value for key, value in record.items() if key in _SAFE_RECORD_FIELDS}
@@ -75,6 +79,100 @@ def _safe_record_view(record: dict[str, object]) -> dict[str, object]:
 
 def _safe_records_view(records: list[dict[str, object]]) -> list[dict[str, object]]:
     return [_safe_record_view(record) for record in records]
+
+
+def _sha256_token(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _key_names(value: object) -> list[str]:
+    if not isinstance(value, Mapping):
+        return []
+    mapping = cast(Mapping[object, object], value)
+    return sorted(str(key) for key in mapping.keys())
+
+
+def _safe_body_key_names(value: object) -> list[str]:
+    return [key for key in _key_names(value) if key not in _SENSITIVE_BODY_KEY_NAMES]
+
+
+def _safe_path(path: str) -> str:
+    return re.sub(r"(/open-apis/cardkit/v1/cards)/[^/]+$", r"\1/{card_id}", path)
+
+
+class MockCallSummary(TypedDict):
+    method: str
+    path: str
+    count: int
+    param_key_names: list[str]
+    body_key_names: list[str]
+
+
+def _safe_mock_call_summary(mock_calls: list[dict[str, object]]) -> list[MockCallSummary]:
+    summaries: list[MockCallSummary] = []
+    by_signature: dict[tuple[str, str], MockCallSummary] = {}
+
+    for call in mock_calls:
+        method = str(call.get("method", ""))
+        path = _safe_path(str(call.get("path", "")))
+        signature = (method, path)
+        summary = by_signature.get(signature)
+        if summary is None:
+            summary = MockCallSummary(
+                method=method,
+                path=path,
+                count=0,
+                param_key_names=[],
+                body_key_names=[],
+            )
+            by_signature[signature] = summary
+            summaries.append(summary)
+
+        summary["count"] += 1
+        param_key_names = set(summary["param_key_names"])
+        body_key_names = set(summary["body_key_names"])
+        summary["param_key_names"] = sorted(param_key_names.union(_key_names(call.get("params"))))
+        summary["body_key_names"] = sorted(body_key_names.union(_safe_body_key_names(call.get("body"))))
+
+    return summaries
+
+
+def _safe_process_evidence(result: ProcessResultLike) -> dict[str, object]:
+    return {
+        "bridge_message_id_sha256": _sha256_token(result.bridge_message_id),
+        "sequence": result.sequence,
+        "status": result.status,
+        "mock_call_summary": _safe_mock_call_summary(result.mock_calls),
+        "recovery_instruction": result.recovery_instruction,
+        "live": False,
+    }
+
+
+def _safe_update_evidence(result: UpdateResultLike) -> dict[str, object]:
+    return {
+        "bridge_message_id_sha256": _sha256_token(result.bridge_message_id),
+        "previous_sequence": result.previous_sequence,
+        "new_sequence": result.new_sequence,
+        "status": result.status,
+        "mock_call_summary": _safe_mock_call_summary(result.mock_calls),
+        "live": False,
+    }
+
+
+class ProcessResultLike(Protocol):
+    bridge_message_id: str
+    sequence: int
+    status: str
+    mock_calls: list[dict[str, object]]
+    recovery_instruction: str | None
+
+
+class UpdateResultLike(Protocol):
+    bridge_message_id: str
+    previous_sequence: int
+    new_sequence: int
+    status: str
+    mock_calls: list[dict[str, object]]
 
 
 def _process_fixture_command(args: argparse.Namespace) -> int:
@@ -86,16 +184,7 @@ def _process_fixture_command(args: argparse.Namespace) -> int:
 
     _state, _transport, _client, orchestrator = _build_stack(typed_args.db)
     result = orchestrator.process_fixture(typed_args.fixture_path, typed_args.recipient)
-    evidence = {
-        "bridge_message_id": result.bridge_message_id,
-        "card_id": result.card_id,
-        "feishu_message_id": result.feishu_message_id,
-        "sequence": result.sequence,
-        "status": result.status,
-        "mock_calls": result.mock_calls,
-        "recovery_instruction": result.recovery_instruction,
-        "live": False,
-    }
+    evidence = _safe_process_evidence(result)
     _write_json(typed_args.evidence, evidence)
     return 1 if result.status == "reconciliation_required" else 0
 
@@ -110,17 +199,10 @@ def _update_card_command(args: argparse.Namespace) -> int:
     state, _transport, _client, orchestrator = _build_stack(typed_args.db)
     record = state.get_record(typed_args.bridge_message_id)
     if record is None:
-        raise BridgeOrchestrationError(f"No bridge record found for {typed_args.bridge_message_id}")
+        raise BridgeOrchestrationError("No bridge record found for the requested bridge message")
 
     result = orchestrator.update_card(typed_args.bridge_message_id)
-    evidence = {
-        "bridge_message_id": result.bridge_message_id,
-        "previous_sequence": result.previous_sequence,
-        "new_sequence": result.new_sequence,
-        "status": result.status,
-        "mock_calls": result.mock_calls,
-        "live": False,
-    }
+    evidence = _safe_update_evidence(result)
     _write_json(typed_args.evidence, evidence)
     return 0
 
@@ -136,7 +218,7 @@ def _inspect_state_command(args: argparse.Namespace) -> int:
             else state.get_record_for_inspect(typed_args.bridge_message_id)
         )
         if record is None:
-            raise BridgeOrchestrationError(f"No bridge record found for {typed_args.bridge_message_id}")
+            raise BridgeOrchestrationError("No bridge record found for the requested bridge message")
         output: dict[str, object] = dict(record) if raw_mode else _safe_record_view(dict(record))
         print(json.dumps(output, ensure_ascii=False, indent=2))
         return 0
@@ -208,10 +290,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return int(args.func(args))
     except BridgeOrchestrationError as exc:
-        print(str(exc), file=sys.stderr)
+        print(redact_failure_text(str(exc)), file=sys.stderr)
         return 1
     except Exception as exc:  # pragma: no cover - defensive CLI boundary
-        print(str(exc), file=sys.stderr)
+        print(redact_failure_text(str(exc)), file=sys.stderr)
         return 1
 
 

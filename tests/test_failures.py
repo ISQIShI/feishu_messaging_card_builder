@@ -132,6 +132,24 @@ def configure_fail_first_sent_persist(state: BridgeStateManager) -> None:
     object.__setattr__(state, "update_status", fail_first_sent_update)
 
 
+def configure_fail_first_updated_persist(state: BridgeStateManager) -> None:
+    original_update_status = state.update_status
+    did_fail_updated_update = False
+
+    def fail_first_updated_update(
+        bridge_message_id: str,
+        status: Status,
+        **extra_fields: object,
+    ) -> None:
+        nonlocal did_fail_updated_update
+        if status is Status.UPDATED and not did_fail_updated_update:
+            did_fail_updated_update = True
+            raise BridgeStateError("Injected UPDATED persistence failure")
+        original_update_status(bridge_message_id, status, **extra_fields)
+
+    object.__setattr__(state, "update_status", fail_first_updated_update)
+
+
 def test_unsupported_content_fails_before_transport(tmp_path: Path) -> None:
     orchestrator, state, transport = build_orchestrator(tmp_path)
 
@@ -360,6 +378,19 @@ def test_failed_send_reason_redacts_colon_separated_values(tmp_path: Path) -> No
     assert "troubleshooter:[REDACTED]" in failure_reason
 
 
+def test_cli_stderr_redacts_known_raw_ids(tmp_path: Path) -> None:
+    transport = MockFeishuTransport(failure_status_codes={"send": 503})
+    orchestrator, _state, _transport = build_orchestrator(tmp_path, transport=transport)
+
+    with pytest.raises(BridgeOrchestrationError) as exc_info:
+        _ = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:stderr-redaction")
+
+    message = str(exc_info.value)
+    assert "feishu:sess-001:hermes-msg-0001:1" not in message
+    assert "card_id=" not in message
+    assert "feishu_message_id=" not in message
+
+
 def test_update_sequence_monotonicity(tmp_path: Path) -> None:
     orchestrator, state, transport = build_orchestrator(tmp_path)
 
@@ -438,3 +469,39 @@ def test_ambiguous_update_failure_requires_reconciliation(tmp_path: Path) -> Non
     assert record["status"] == Status.RECONCILIATION_REQUIRED.value
     assert record["sequence"] == 1
     assert record["version"] == 1
+
+
+def test_update_success_persist_fail_converges_to_reconciliation_without_blind_retry(
+    tmp_path: Path,
+) -> None:
+    state = BridgeStateManager(str(tmp_path / "bridge.sqlite"))
+    configure_fail_first_updated_persist(state)
+    orchestrator, used_state, transport = build_orchestrator(tmp_path, state=state)
+
+    process_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:update-persist-fail")
+
+    update_result = orchestrator.update_card(process_result.bridge_message_id)
+    record = used_state.get_record(process_result.bridge_message_id)
+
+    assert update_result.status == Status.RECONCILIATION_REQUIRED.value
+    assert update_result.previous_sequence == 1
+    assert update_result.new_sequence == 2
+    assert len(update_result.mock_calls) == 1
+    assert transport.calls[-1]["method"] == "PUT"
+    assert record is not None
+    assert record["status"] == Status.RECONCILIATION_REQUIRED.value
+    assert record["sequence"] == 2
+    assert record["version"] == 2
+    assert record["failure_reason"] is not None
+    assert "local persistence failed" in record["failure_reason"]
+
+    replay_result = orchestrator.process_fixture(HAPPY_FIXTURE, "open_id:update-persist-fail")
+
+    assert replay_result.status == Status.RECONCILIATION_REQUIRED.value
+    assert replay_result.mock_calls == []
+    assert len(transport.calls) == 3
+
+    with pytest.raises(BridgeOrchestrationError, match="Only sent, updated, or update_failed"):
+        _ = orchestrator.update_card(process_result.bridge_message_id)
+
+    assert len(transport.calls) == 3

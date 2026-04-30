@@ -1,0 +1,5 @@
+{
+  "session_key": "mock-session-001",
+  "hermes_message_id": "test-hermes-msg-006",
+  "content_markdown": "Malformed event missing required fields."
+}

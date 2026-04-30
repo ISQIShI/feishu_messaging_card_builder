@@ -45,23 +45,22 @@ Plan 3 将三类身份字段分开定义，避免把“逻辑消息身份”“�
 
 Plan 3 冻结以下 changed-content 规则：
 
-- Same `bridge_message_id` + same `content_hash` → idempotent replay，直接返回现有记录。
-- Same `bridge_message_id` + different `content_hash` → 依据当前状态决定：
-  - If status < sent：更新待发送记录中的内容，然后继续当前发送路径。
-  - If status = sent AND unexpired：把它视为同一张卡片的更新，而不是静默创建重复卡片。
-  - If expired/ambiguous：返回 `reconciliation_required`。
-- 在 `get_or_create` 上遇到 content hash mismatch 时，抛出 `BridgeStateError`，由上层根据当前状态将其映射到“更新待发送记录”“更新已发送卡片”或“进入人工协调”。
+- Same `bridge_message_id` + different `content_hash` → 依据当前生命周期状态决定：
+  - If status < sent：允许原地更新（mutate）现有待发送记录中的内容，然后继续当前发送路径。
+  - If status = sent/updated/update_failed AND unexpired：将其视为同一张卡片的更新，直接进入 update path，不允许创建重复卡片或回退到 resend。
+  - If expired/ambiguous/reconciliation_required：不产生新的副作用，状态保持或收敛为 `reconciliation_required`，由人工协调。
+- 在 `get_or_create` 上遇到 content hash mismatch 时，由上层根据当前生命周期状态决定分支，不允许越过状态机直接补发副作用。
 
 补充约束：
 
 - “ambiguous” 在此处指不能安全断定远端是否已接受发送/更新的状态，不能把它自动乐观地解释成可继续复用同一 `card_id`。
 - changed-content 规则的目标是防止无声重复卡片，不是扩展为任意内容版本分叉系统。
-- Plan 4 closeout 将 changed-content branching 进一步收窄为按 lifecycle state 分支，而不是按“上层想做什么”分支：
-  - Same `bridge_message_id` + different `content_hash` + `new` / `card_created` / `send_pending` / `send_failed` → 仅允许 mutate 现有待发送记录，然后继续 pending/send 路径；这里的 `pending` 指记录仍处于卡已创建但消息尚未被安全确认为远端接受之前。
-  - Same `bridge_message_id` + different `content_hash` + `sent` / `updated` / `update_failed` 且未过期 → 仅允许进入 update path；不得静默新建第二张卡，也不得回退成 resend。
-  - Same `bridge_message_id` + different `content_hash` + `reconciliation_required` 或任意 ambiguous 状态 → 不产生新的 send/update side effect，状态保持或收敛为 `reconciliation_required`，等待人工协调。
-  - Same `bridge_message_id` + different `content_hash` + `expired` → 维持 `expired` 终态；不得借 content change 重新激活既有记录。
-- 上层映射 `BridgeStateError` 时，必须先依据当前生命周期状态决定“mutate pending record / use update path / stay reconciliation_required / stay expired”，再决定返回给调用者的提示，不允许越过状态机直接补发副作用。
+- Plan 4 closeout 将 changed-content branching 进一步收窄：
+  - Same `bridge_message_id` + different `content_hash` + `new` / `card_created` / `send_pending` / `send_failed` → 仅允许 mutate 现有待发送记录，然后继续 pending/send 路径。
+  - Same `bridge_message_id` + different `content_hash` + `sent` / `updated` / `update_failed` 且未过期 → 仅允许进入 update path。
+  - Same `bridge_message_id` + different `content_hash` + `reconciliation_required` 或任意 ambiguous 状态 → 保持/收敛为 `reconciliation_required`。
+  - Same `bridge_message_id` + different `content_hash` + `expired` → 维持 `expired` 终态。
+- 只有 `new` 状态下的 hash mismatch 映射为内容变更，其他状态下的 hash mismatch 均映射为对既有记录生命周期的延续（发送或更新）。
 
 ## 4. Migration Policy
 
@@ -99,29 +98,30 @@ Plan 3 把可更新窗口冻结为持久字段 `updatable_until`。
 
 Plan 3 将 `version` 冻结为“last remotely accepted” 的 Feishu 更新序列定义。
 
-- `version` = last remotely accepted Feishu update sequence。
+- `version` = last remotely accepted Feishu update sequence.
 - 失败更新不会推进 `version`。
-- 成功更新后，才递增并持久化新的 `version`。
+- 成功更新后，递增 `version + 1` 并持久化。
 - `version` 直接作为 Feishu 更新请求中的 `sequence` 参数。
 
 补充约束：
 
-- `version` 不是“本地尝试次数”，也不是“最后一次看到的任意序号”；它只记录最后一次被远端接受的序列。
+- `version` 不是“本地尝试次数”，而是“最后一次被远端接受并确认为成功的序列”。
 - 这一定义直接约束 stale sequence 的处理：如果远端没有接受，本地就不能推进序号。
+- `version + 1` 语义确保了每次成功更新都有一个单调递增的序号，符合飞书 Card ID 更新机制。
 
 ## 7. Send Failure Classes
 
 发送失败只分为三类，且每类都绑定最小恢复动作：
 
-1. **Explicit pre-acceptance rejection**：Feishu 在消息被接受前就明确拒绝请求，例如 `invalid receive_id` 或其他清晰的接收方/校验错误。只有这一类才允许复用同一 `card_id` 重试发送。
-2. **Ambiguous failure**：超时、5xx、网络中断、或其他无法判断远端是否已接受的错误。对此同一 `card_id` 绝不能盲目重发，必须进入 `reconciliation_required`。
-3. **Local persistence failure after remote success**：远端已接受，但本地状态落盘失败。该情况同样进入 `reconciliation_required`，并要求给出恢复说明。
+1. **Explicit pre-acceptance rejection**：Feishu 在消息被接受前就明确拒绝请求。Plan 3 仅将 `invalid receive_id` 视为此类别的 live-proven 证据。只有这一类才允许复用同一 `card_id` 重试发送。
+2. **Ambiguous failure**：超时、5xx、网络中断、或无法判断远端是否已接受。对此绝不能重发，必须进入 `reconciliation_required`。
+3. **Local persistence failure after remote success**：远端已接受但本地落盘失败。进入 `reconciliation_required`。
 
 补充约束：
 
-- “允许同卡重试”不是广义重试开关，只适用于已经被明确证明属于 pre-acceptance rejection 的发送错误。
-- Plan 3 的 live validation 只要求收窄到 `invalid receive_id` 这类显式拒绝边界，不把更宽泛的远端错误一并视为安全可重试。
-- Plan 4 closeout 将 resend policy 进一步收窄为：same-`card_id` retry ONLY for invalid `receive_id` 这类已被 Plan 3 live-proven 的 explicit pre-acceptance rejection。timeout、5xx、连接中断、unknown error、响应缺字段、或任何“看起来像被拒绝但不能证明发生在 acceptance 之前”的情况，统一进入 `reconciliation_required`。
+- “允许同卡重试”仅适用于已被明确证明属于 pre-acceptance rejection 的发送错误。
+- Plan 4 closeout 明确：same-card_id retry ONLY for **invalid receive_id**。其他如 `invalid open_id`、timeout、5xx 等均进入 `reconciliation_required`。
+- `invalid open_id` 虽也是接收方错误，但因其可能在不同上下文中表现不同，在本契约中被保守地视为非安全重试类。
 
 ## 8. Update Failure Classes
 

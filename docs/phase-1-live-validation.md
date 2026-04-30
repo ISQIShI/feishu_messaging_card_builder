@@ -78,33 +78,33 @@ When running live commands, you must provide a valid recipient ID (e.g., `open_i
 - The default mock recipient is `mock-open-id`.
 - For live runs, use your own `open_id` (found in the Feishu Open Platform -> Contacts or via the API Explorer).
 
-## Exact Live Commands (Future Usage)
+## Exact Live Commands (Manual Validation Only)
 
-The `--live-feishu` flag is a tested fail-closed placeholder. Currently, the CLI will reject this flag with a message indicating it is not operational in the prototype. The commands below represent the target CLI behavior once live transport is integrated.
+The `--live-feishu` flag is a tested fail-closed placeholder. Currently, the CLI will reject this flag with a message indicating it is not operational in the prototype. This is an intentional safety boundary: the repository does not contain a repo-owned live transport or runtime bridge.
 
-### 1. Process Fixture (Create & Send)
-This command processes a Hermes fixture, creates a card entity, and sends it to a recipient.
+The commands below represent the target CLI behavior for manual validation only and are not intended for production usage in this phase.
+
+### 1. Process Fixture (Mock/Dry-run Target)
+This command processes a Hermes fixture. Without `--live-feishu` (the default), it performs a mock run. Use this for verifying core logic.
 
 ```bash
 .venv/bin/python -m feishu_messaging_card_builder.cli process-fixture tests/fixtures/hermes_final_reply.json \
   --db .fmcb/live.sqlite \
-  --live-feishu \
   --recipient <YOUR_OPEN_ID> \
-  --evidence live-evidence.json
+  --evidence mock-evidence.json
 ```
 
-### 2. Update Card
-This command updates an existing card message by its bridge message ID.
+### 2. Update Card (Mock/Dry-run Target)
+This command simulates updating an existing card message.
 
 ```bash
 .venv/bin/python -m feishu_messaging_card_builder.cli update-card <BRIDGE_MSG_ID> \
   --db .fmcb/live.sqlite \
-  --live-feishu \
-  --evidence live-update-evidence.json
+  --evidence mock-update-evidence.json
 ```
 
 ### 3. Inspect State
-Check the local records of live interactions.
+Check the local records of interactions. This is the primary way to verify state transitions.
 
 ```bash
 .venv/bin/python -m feishu_messaging_card_builder.cli inspect-state --db .fmcb/live.sqlite
@@ -112,9 +112,9 @@ Check the local records of live interactions.
 
 ## Payload-Proof Note
 
-Phase 2 live validation using `lark-cli` has confirmed the official API shapes. The `legacy_template_send` path has been superseded by the `interactive` message type with a `card_id` payload.
+Phase 2 live validation using external tools (e.g., `lark-cli`) has confirmed the official API shapes. The `legacy_template_send` path has been superseded by the `interactive` message type with a `card_id` payload.
 
-If a live command fails due to a payload mismatch:
+If a future live implementation fails due to a payload mismatch:
 1. Record the exact error response in a new evidence file.
 2. Update `docs/phase-1-prototype-decisions.md` with the corrected findings.
 3. Update the implementation only after the decision is recorded.
