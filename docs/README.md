@@ -12,10 +12,12 @@
 6. `hermes-outbound-seam-memo.md`：**[NEW]** 确定如何拦截并重定向 Hermes 的出站消息。
 7. `phase-3-runtime-bridge-design.md`：**[NEW]** Phase 3 运行时桥接设计冻结备忘录，收敛接缝、事件契约、失败上限与可逆边界。
 8. `phase-1-live-validation.md`：**[NEW]** 查看 Phase 1 现场测试的证据与通过标准。
-9. `roadmap.md`：确认长期方向、阶段路线和哪些决策可以延后。
-10. `git-standards.md`：确认分支、提交、PR 和历史整理规范。
-11. `open-questions.md`：最后整理目前依然悬而未决的问题。
+9. `evidence-privacy-taxonomy.md`：**[NEW]** 证据与隐私分类规范，定义 safe/quarantined/invalid 等级。
+10. `roadmap.md`：确认长期方向、阶段路线和哪些决策可以延后。
+11. `git-standards.md`：确认分支、提交、PR 和历史整理规范。
+12. `open-questions.md`：最后整理目前依然悬而未决的问题。
+13. `AGENTS.md`：面向代码代理的文档工作规则。
 
-核心结论：Phase 1 & 2 验证了“消息拦截 -> 实体创建 -> 动态更新”链路的技术可行性与可靠性。Phase 3 通过运行时桥接框架（Runtime Bridge Harness）在 mock 环境下收敛了 Hermes 与飞书卡片之间的事件契约。
+核心结论：Phase 1 & 2 验证了“消息拦截 -> 实体创建 -> 动态更新”链路的技术可行性与可靠性。Phase 3 通过运行时桥接框架（Runtime Bridge Harness）在 mock 环境下收敛了 Hermes 与飞书卡片之间的事件契约，并完成了设计冻结。
 
 当前约束：只考虑 Hermes Feishu/Lark websocket 连接方式；任何对 Hermes 源码或其他非本项目内容的修改，都必须可安装、可卸载、可更新、可审计和可恢复。

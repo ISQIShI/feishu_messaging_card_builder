@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the evidence/privacy contract for Plan 6 closeout work.
+This document defines the evidence/privacy contract for project closeout work.
 It classifies evidence artifacts by whether they are authoritative for future closeout claims,
 whether they may remain under `.sisyphus/evidence/`, and what remediation is required before any PASS claim.
 
@@ -83,20 +83,15 @@ Operational rule: an `invalid` artifact is not authoritative, is not PASS-eligib
 
 ## Classification Rules for Baseline Inventory
 
-The Plan 6 baseline inventory applies the following precedence order:
+The baseline inventory applies the following precedence order:
 
 1. `invalid` if structured parsing fails.
 2. `quarantined` if the artifact is historical/raw and currently exposes raw/equivalent identifiers, nested raw payloads, or SQLite sample leakage.
 3. `safe` if neither condition above applies.
 
-Notes:
-
-- `raw-debug-local-only` is a policy class, not a default retention class; under evidence roots it must become `quarantined` or be removed from the evidence set.
-- `generation-order-excluded` is a scan-status class, not a claim of safety.
-
-## Plan 6 Baseline Expectations
+## Baseline Expectations
 
 - No artifact should receive a PASS claim merely because it already exists under `.sisyphus/evidence/`.
 - Known historical raw Plan 4 inspect/process/SQLite artifacts remain context-only until replaced or superseded.
-- Known Plan 5 hygiene artifacts with sampled raw identifiers remain non-authoritative.
-- Known malformed Plan 5 final hygiene output remains `invalid` until fixed or quarantined.
+- Known Plan 5/6/7 hygiene artifacts with sampled raw identifiers remain non-authoritative unless remediated.
+- Known malformed final hygiene output remains `invalid` until fixed or quarantined.

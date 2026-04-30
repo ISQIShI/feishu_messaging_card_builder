@@ -6,7 +6,7 @@
 
 ## OVERVIEW
 
-Phase 1 minimal prototype for a Hermes → Feishu card-entity bridge. Contains Python package, tests, and CLI.
+Phase 1/2 complete. Phase 3 Design Freeze & Harness verification in closeout. Contains Python package, core logic, runtime bridge harness, and 89+ tests.
 
 ## STRUCTURE
 
@@ -36,10 +36,9 @@ feishu_messaging_card_builder/
 
 ## CURRENT PHASE
 
-- Phase 1: Prototype completion with Phase 2 reliability hardening in closeout.
-- Verify core logic with `.venv/bin/python -m pytest`.
-- Explore new integration seams in `docs/hermes-outbound-seam-memo.md`.
-- Do not turn remaining open questions into implementation assumptions.
+- Phase 3: Design freeze and Runtime Bridge Harness verification (Plan 7/8).
+- Verify core logic & harness with `.venv/bin/python -m pytest`.
+- Verify runtime contract via `.venv/bin/python -m feishu_messaging_card_builder.cli runtime-bridge harness`.
 
 ## NON-NEGOTIABLE PROJECT CONSTRAINTS
 

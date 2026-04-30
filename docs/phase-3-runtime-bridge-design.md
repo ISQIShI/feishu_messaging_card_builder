@@ -1,8 +1,8 @@
-# Phase 3 Runtime Bridge Design Freeze
+# Phase 3 Runtime Bridge Design Freeze & Harness
 
-> 状态：Design Freeze Only
+> 状态：Design Freeze & Harness Verification Complete
 > 
-> 范围：本文档冻结 Phase 3 运行时桥接层的设计边界、最小事件契约、状态与证据口径。它不是实现任务单，也不代表仓库现在已经提供 live runtime bridge。
+> 范围：本文档冻结 Phase 3 运行时桥接层的设计边界、最小事件契约、状态与证据口径。当前仓库提供运行时桥接验证框架（Harness），用于在 mock 环境下验证契约，但不代表仓库现在已经提供生产环境的 live runtime bridge。
 
 ## Overview / TL;DR
 
@@ -337,11 +337,11 @@ Phase 3 冻结如下可逆集成边界：
 
 ## Implementation Status
 
-当前状态为 **Core Harness Implementation**。
+当前状态为 **Design Freeze & Harness Verification Complete**。
 
 - 桥接框架：已实现运行时桥接层（Runtime Bridge Harness）的 mock/offline 验证框架；
 - 状态同步：支持在 mock 环境下模拟 Hermes 消息的双向交付与状态生命周期同步；
-- 验证隔离：通过独立的验证工具（harness）在不侵入 Hermes 源码的前提下验证桥接逻辑。
+- 契约验证：通过独立的验证工具（harness）在不侵入 Hermes 源码的前提下完成了设计契约的验证与证据收集。
 
 注意：本阶段依然**不产出**生产环境的 live transport 逻辑，也不包含对 Hermes 的补丁（Patch）。
 - 本仓库目前仍不提供 repo-owned runtime websocket bridge；
