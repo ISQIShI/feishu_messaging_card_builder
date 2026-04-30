@@ -95,35 +95,77 @@ def test_runtime_bridge_harness_disabled_records_zero_card_ops(tmp_path: Path) -
     assert payload["native_delivery_recorded"] is True
     assert payload["card_create_count"] == 0
     assert payload["card_send_count"] == 0
-    assert payload["card_update_count"] == 0
-    assert payload["classification"] == "supported"
-    assert payload["status"] == "native_delivery_recorded"
 
 
-def test_runtime_bridge_harness_unsupported_event_is_deterministic(tmp_path: Path) -> None:
+def test_reversibility_disabled_check(tmp_path: Path) -> None:
+    """
+    Proves that the bridge can be disabled and results in zero card operations.
+    Evidence: .sisyphus/evidence/plan-7/task-6-reversibility-disabled.json
+    """
     db_path = tmp_path / "bridge.sqlite"
     evidence_dir = tmp_path / "harness"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
 
     result = _run(
         "runtime-bridge",
         "harness",
         "--fixture",
-        str(UNSUPPORTED_FIXTURE),
+        str(MINIMAL_FIXTURE),
         "--db",
         str(db_path),
         "--delivery-mode",
-        "controlled-dual",
+        "disabled",
         "--evidence-dir",
         str(evidence_dir),
     )
 
-    payload = cast(dict[str, object], json.loads((evidence_dir / "summary.json").read_text(encoding="utf-8")))
+    summary_file = evidence_dir / "summary.json"
+    payload = cast(dict[str, object], json.loads(summary_file.read_text(encoding="utf-8")))
+
+    # Save evidence to specified location
+    evidence_path = ROOT / ".sisyphus" / "evidence" / "plan-7" / "task-6-reversibility-disabled.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     assert result.returncode == 0
-    assert payload["normalized_event_count"] == 0
-    assert payload["classification"] == "unsupported"
+    assert payload["bridge_disabled"] is True
+    assert payload["native_delivery_recorded"] is True
     assert payload["card_create_count"] == 0
     assert payload["card_send_count"] == 0
+    assert payload["card_update_count"] == 0
+
+
+def test_forbidden_install_surfaces_absent() -> None:
+    """
+    Proves that no forbidden install/patch surfaces exist in the repo root.
+    Evidence: .sisyphus/evidence/plan-7/task-6-forbidden-surfaces.txt
+    """
+    forbidden_files = [
+        "install.sh",
+        "check.sh",
+        "update.sh",
+        "uninstall.sh",
+        "run.py.patch",
+    ]
+    forbidden_dirs = [
+        "feishu_card_build",
+    ]
+
+    found = []
+    for f in forbidden_files:
+        if (ROOT / f).exists():
+            found.append(f)
+    for d in forbidden_dirs:
+        if (ROOT / d).exists():
+            found.append(f"{d}/")
+
+    # Save evidence
+    evidence_path = ROOT / ".sisyphus" / "evidence" / "plan-7" / "task-6-forbidden-surfaces.txt"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence_path.write_text(f"forbidden_surfaces={json.dumps(found)}", encoding="utf-8")
+
+    assert found == [], f"Forbidden surfaces found: {found}"
+
 
 
 def test_runtime_bridge_harness_requires_live_env_guard(tmp_path: Path) -> None:

@@ -264,6 +264,21 @@ Phase 3 冻结如下可逆集成边界：
 - 可以为未来实现预留接缝；
 - 不可以把不可恢复的环境改动伪装成“运维步骤”。
 
+## Reversibility Specification & Check
+
+为了确保项目的可逆性与最小侵入性，Plan 7 定义了以下可逆性规范：
+
+1. **Harness-Level Proof Only**: Plan 7 仅通过 harness (测试马甲) 证明集成的可行性与可逆性，不引入生产级的 `install.sh`、`check.sh`、`update.sh` 或 `uninstall.sh` 脚本。
+2. **Explicit Disable Mode**: 桥接层必须支持显式的禁用模式。通过 `--delivery-mode disabled` 标志，可以完全停用卡片转换逻辑。
+3. **Zero-Operation Guarantee**: 在禁用模式下，系统必须满足以下证据口径：
+   - `bridge_disabled: true`；
+   - `native_delivery_recorded: true` (保持原始文本记录)；
+   - 所有卡片操作计数器（`card_create_count`, `card_send_count`, `card_update_count`）均为 0。
+4. **Forbidden Surfaces**: 仓库根目录严禁出现以下“硬侵入”文件或目录：
+   - 文件：`install.sh`, `check.sh`, `update.sh`, `uninstall.sh`, `run.py.patch`；
+   - 目录：`feishu_card_build/`。
+5. **Escalation Path**: 若实现干净的拦截接缝必须修改 Hermes 源码，必须停止当前路径并创建 **Forced-Seam Decision Memo**，而不是直接应用补丁。
+
 ## Forced-Seam Escalation Triggers
 
 只有在首选 wrapper-first seam 被证据证明不足以满足最小目标时，Phase 3 才允许进入 **forced-seam escalation** 讨论。以下触发条件冻结为 stop conditions；一旦命中，当前接缝不应继续模糊推进，而应停下并产出新的设计备忘录（Forced-Seam Decision Memo）。
