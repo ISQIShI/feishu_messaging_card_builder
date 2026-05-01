@@ -1,0 +1,20 @@
+Plan 11 Task 5 — Roadmap Overclaim Check
+Timestamp: 2026-05-01T00:00:00Z
+Executor: Sisyphus-Junior (gpt-5.4)
+
+Shared scan contract
+====================
+
+- contract=.sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json
+- corpus=[".sisyphus/evidence/plan-10/README.md", ".sisyphus/evidence/plan-11/README.md"]
+- pass_fail_semantics=pass_with_classification when every hit is historical_negated_closeout_wording; fail if any hit is active_authorization_overclaim or unclassified
+
+Roadmap scan summary
+====================
+
+roadmap_non_advancement={"contract":".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json","passed":true,"status":"pass_with_classification","blocking_overclaims":[],"classified_hits":[{"phrase":"Allowed next package","file":".sisyphus/evidence/plan-10/README.md","line_numbers":[70],"classification":"historical_negated_closeout_wording","context":"historical/negated closeout wording in Plan 10 README; not an authorization claim"},{"phrase":"PASS-ready","file":".sisyphus/evidence/plan-10/README.md","line_numbers":[7,48],"classification":"historical_negated_closeout_wording","context":"historical/negated closeout wording in Plan 10 README; not an active readiness claim"}],"note":"The shared contract preserves classified historical hits without treating them as blocking roadmap advancement."}
+
+Result
+======
+
+All flagged phrases are preserved with classification rather than erased. The scan passes under the shared contract because every hit is historical/negated closeout wording and no roadmap advancement is authorized.

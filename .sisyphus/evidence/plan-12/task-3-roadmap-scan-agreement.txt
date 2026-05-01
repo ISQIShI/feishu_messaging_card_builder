@@ -1,0 +1,22 @@
+Plan 12 Task 3 — Roadmap Scan Agreement
+Timestamp: 2026-05-01T00:00:00Z
+Executor: Sisyphus-Junior (gpt-5.4)
+
+Scenario
+========
+
+Roadmap-overclaim artifacts agree after applying the shared scan contract.
+
+Inputs
+======
+
+- .sisyphus/evidence/plan-11/task-5-roadmap-overclaim-check.txt
+- .sisyphus/evidence/plan-11/task-6-regression-and-scope-check.txt
+- .sisyphus/evidence/plan-11/final-consistency-verification.json
+
+Result
+======
+
+roadmap_scan_disagreements=[]
+roadmap_scan_status=pass_with_classification
+roadmap_scan_classified_hits=[{"phrase": "Allowed next package", "file": ".sisyphus/evidence/plan-10/README.md", "line_numbers": [70], "classification": "historical_negated_closeout_wording", "context": "historical/negated closeout wording in Plan 10 README; not an authorization claim"}, {"phrase": "PASS-ready", "file": ".sisyphus/evidence/plan-10/README.md", "line_numbers": [7, 48], "classification": "historical_negated_closeout_wording", "context": "historical/negated closeout wording in Plan 10 README; not an active readiness claim"}]

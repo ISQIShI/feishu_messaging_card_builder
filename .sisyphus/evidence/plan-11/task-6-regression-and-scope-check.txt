@@ -1,0 +1,60 @@
+Plan 11 Task 6 — Regression and Scope Check
+Timestamp: 2026-04-30T15:54:14.904635Z
+Executor: Sisyphus-Junior (gpt-5.4)
+
+Regression commands
+===================
+
+1) .venv/bin/python -m pytest
+- exit_code=0
+- tests_passed=119
+
+2) .venv/bin/python -m feishu_messaging_card_builder.cli --help
+- exit_code=0
+- summary=CLI help rendered successfully for process-fixture, update-card, inspect-state, runtime-bridge
+
+3) GIT_MASTER=1 git diff --check
+- exit_code=0
+- output=(none)
+
+4) GIT_MASTER=1 git status --short
+- output=(clean)
+
+Consistency validation summary
+==============================
+
+- authority_alignment.canonical_conflicts=[]
+- authority_alignment.missing_facts=[]
+- artifact_resolution.artifact_missing=[]
+- artifact_resolution.artifact_unresolved=[]
+- cross_file_contradictions.trigger_conflicts=[]
+- cross_file_contradictions.pass_ready_conflicts=[]
+- cross_file_contradictions.review_wave={"F1":"REJECT","F2":"REJECT","F3":"REJECT","F4":"APPROVE"}
+- json_envelope.schema_violations=[]
+- truthful_booleans.misleading_clean_fields=[]
+- truthful_booleans.missing_scope_note=false
+- vocabulary_scope.selected_recommendation=wrapper-first-with-constraints
+- vocabulary_scope.selected_recommendation_count=1
+- vocabulary_scope.future_outcome_classification=future_outcome_only
+- vocabulary_scope.deprecated=0
+- index_targets.missing_index_targets=[]
+- roadmap_non_advancement={"contract":".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json","passed":true,"status":"pass_with_classification","blocking_overclaims":[],"classified_hits":[{"phrase":"Allowed next package","file":".sisyphus/evidence/plan-10/README.md","line_numbers":[70],"classification":"historical_negated_closeout_wording","context":"historical/negated closeout wording in Plan 10 README; not an authorization claim"},{"phrase":"PASS-ready","file":".sisyphus/evidence/plan-10/README.md","line_numbers":[7,48],"classification":"historical_negated_closeout_wording","context":"historical/negated closeout wording in Plan 10 README; not an active readiness claim"}],"note":"The shared contract preserves classified historical hits without treating them as blocking roadmap advancement."}
+
+Forbidden scope guards
+======================
+
+- live_transport=false
+- wrapper_implementation=false
+- hermes_patch=false
+- webhook=false
+- installer=false
+- queue_retry=false
+- streaming=false
+- actions=false
+- component_update=false
+
+Result
+======
+
+Final mechanical verification passed for the active Plan 11 closeout package under the shared roadmap scan contract.
+Truthful closeout posture remains: closeout-repair-complete-awaiting-rereview.

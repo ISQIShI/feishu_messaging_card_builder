@@ -1,0 +1,121 @@
+{
+  "plan": 11,
+  "task": 6,
+  "task_slug": "final-consistency-verification",
+  "timestamp": "2026-04-30T15:54:14.904635Z",
+  "used_stash": false,
+  "overall_status": "closeout-repair-complete-awaiting-rereview",
+  "checks": {
+    "pytest": {
+      "passed": true,
+      "exit_code": 0,
+      "tests_passed": 119
+    },
+    "cli_help": {
+      "passed": true,
+      "exit_code": 0
+    },
+    "diff_check": {
+      "passed": true,
+      "exit_code": 0
+    },
+    "git_status_clean": true,
+    "git_status_short": [],
+    "authority_alignment": {
+      "passed": true,
+      "canonical_conflicts": [],
+      "missing_facts": []
+    },
+    "artifact_resolution": {
+      "passed": true,
+      "resolution_count": 5,
+      "artifact_missing": [],
+      "artifact_unresolved": []
+    },
+    "cross_file_contradictions": {
+      "passed": true,
+      "trigger_conflicts": [],
+      "pass_ready_conflicts": [],
+      "review_wave": {
+        "F1": "REJECT",
+        "F2": "REJECT",
+        "F3": "REJECT",
+        "F4": "APPROVE"
+      },
+      "index_mismatches": []
+    },
+    "vocabulary_scope": {
+      "passed": true,
+      "selected_recommendation": "wrapper-first-with-constraints",
+      "selected_recommendation_count": 1,
+      "selected_recommendation_uniqueness": true,
+      "future_outcome_classification": "future_outcome_only",
+      "deprecated": 0,
+      "deprecated_files": []
+    },
+    "json_envelope": {
+      "passed": true,
+      "active_json_files": [
+        ".sisyphus/evidence/plan-10/task-3-vocabulary-scan.json",
+        ".sisyphus/evidence/plan-10/task-6-f1-f4-index.json",
+        ".sisyphus/evidence/plan-10/task-7-tmp-artifacts-summary.json",
+        ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+        ".sisyphus/evidence/plan-11/task-2-artifact-gap-resolution.json",
+        ".sisyphus/evidence/plan-11/task-4-envelope-and-vocabulary-check.json"
+      ],
+      "schema_violations": []
+    },
+    "truthful_booleans": {
+      "passed": true,
+      "misleading_clean_fields": [],
+      "missing_scope_note": false
+    },
+    "index_targets": {
+      "passed": true,
+      "missing_index_targets": []
+    },
+    "roadmap_non_advancement": {
+      "contract": ".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json",
+      "passed": true,
+      "status": "pass_with_classification",
+      "blocking_overclaims": [],
+      "classified_hits": [
+        {
+          "phrase": "Allowed next package",
+          "file": ".sisyphus/evidence/plan-10/README.md",
+          "line_numbers": [
+            70
+          ],
+          "classification": "historical_negated_closeout_wording",
+          "context": "historical/negated closeout wording in Plan 10 README; not an authorization claim"
+        },
+        {
+          "phrase": "PASS-ready",
+          "file": ".sisyphus/evidence/plan-10/README.md",
+          "line_numbers": [
+            7,
+            48
+          ],
+          "classification": "historical_negated_closeout_wording",
+          "context": "historical/negated closeout wording in Plan 10 README; not an active readiness claim"
+        }
+      ],
+      "note": "The shared contract preserves classified historical hits without treating them as blocking roadmap advancement."
+    }
+  },
+  "regression": {
+    "pytest_passed": 119,
+    "failures": 0
+  },
+  "scope_guards": {
+    "live_transport": false,
+    "wrapper_implementation": false,
+    "hermes_patch": false,
+    "webhook": false,
+    "installer": false,
+    "queue_retry": false,
+    "streaming": false,
+    "actions": false,
+    "component_update": false
+  }
+}

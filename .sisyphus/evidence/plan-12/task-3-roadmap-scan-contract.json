@@ -1,0 +1,84 @@
+{
+  "plan": 12,
+  "task": 3,
+  "task_slug": "roadmap-scan-contract",
+  "timestamp": "2026-05-01T00:00:00Z",
+  "purpose": "Define a single roadmap-overclaim scan contract for Plan 11 closeout artifacts and preserve classified historical hits without authorizing roadmap advancement.",
+  "scan_corpus": {
+    "include_files": [
+      ".sisyphus/evidence/plan-10/README.md",
+      ".sisyphus/evidence/plan-11/README.md"
+    ],
+    "exclude_reporting_artifacts": [
+      ".sisyphus/evidence/plan-11/task-5-roadmap-overclaim-check.txt",
+      ".sisyphus/evidence/plan-11/task-6-regression-and-scope-check.txt",
+      ".sisyphus/evidence/plan-11/final-consistency-verification.json",
+      ".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json",
+      ".sisyphus/evidence/plan-12/task-3-roadmap-scan-agreement.txt",
+      ".sisyphus/evidence/plan-12/task-3-no-roadmap-authorization.txt"
+    ],
+    "rationale": "Scan only the upstream authority-bearing README surfaces that Plan 11 uses to describe closeout and roadmap posture. Exclude reporting artifacts so quoted evidence does not become a recursive self-hit."
+  },
+  "flagged_phrases": [
+    {
+      "phrase": "Allowed next package",
+      "risk": "Can overclaim next-step authorization if it names roadmap advancement rather than a denial of advancement."
+    },
+    {
+      "phrase": "PASS-ready",
+      "risk": "Can overclaim closeout readiness if it appears as active approval rather than negated or historical wording."
+    }
+  ],
+  "classification_rules": [
+    {
+      "classification": "active_authorization_overclaim",
+      "blocking": true,
+      "criteria": "The phrase appears as present-tense approval, next-step authorization, or execution permission without clear negation or historical framing."
+    },
+    {
+      "classification": "historical_negated_closeout_wording",
+      "blocking": false,
+      "criteria": "The phrase appears only to deny current readiness/authorization or to label archival wording as non-current authority."
+    },
+    {
+      "classification": "quoted_reporting_context",
+      "blocking": false,
+      "criteria": "The phrase appears only inside a reporting artifact that quotes evidence under this contract; reporting artifacts are excluded from the corpus."
+    }
+  ],
+  "hit_aggregation": {
+    "unit": "phrase_per_file",
+    "line_number_policy": "Aggregate all matched line numbers for the same phrase in the same file into one classified hit record."
+  },
+  "pass_fail_semantics": {
+    "pass_clean": "No flagged phrases appear anywhere in the scan corpus.",
+    "pass_with_classification": "One or more flagged phrases appear, but every hit is classified as historical_negated_closeout_wording and no blocking or unclassified hit remains.",
+    "fail": "Any hit is classified as active_authorization_overclaim or remains unclassified."
+  },
+  "current_application": {
+    "status": "pass_with_classification",
+    "blocking_overclaims": [],
+    "classified_hits": [
+      {
+        "phrase": "Allowed next package",
+        "file": ".sisyphus/evidence/plan-10/README.md",
+        "line_numbers": [
+          70
+        ],
+        "classification": "historical_negated_closeout_wording",
+        "rationale": "The line explicitly denies roadmap advancement by limiting the next package to repair evidence and rereview closure."
+      },
+      {
+        "phrase": "PASS-ready",
+        "file": ".sisyphus/evidence/plan-10/README.md",
+        "line_numbers": [
+          7,
+          48
+        ],
+        "classification": "historical_negated_closeout_wording",
+        "rationale": "Line 7 negates current readiness ('rather than PASS-ready'); line 48 preserves archival overclaim evidence while explicitly denying current authority."
+      }
+    ],
+    "note": "The shared contract preserves the two historical/negated hits as non-blocking evidence. No observation + recipient gate audit execution is authorized."
+  }
+}
