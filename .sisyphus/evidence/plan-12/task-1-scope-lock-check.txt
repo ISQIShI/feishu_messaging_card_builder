@@ -1,0 +1,48 @@
+Plan 12 Task 1 — Scope Lock Completeness Check
+==============================================
+
+Command
+-------
+python3 - <<'PY'
+import json
+from pathlib import Path
+path = Path('.sisyphus/evidence/plan-12/blocker-ledger.json')
+data = json.loads(path.read_text())
+required_items = [
+    'observation/recipient audit execution',
+    'live transport',
+    'production wrapper',
+    'hermes patch',
+    'webhook',
+    'installer',
+    'queue/retry/dedupe/reconcile',
+    'streaming/actions/component update',
+    'source/test edit default prohibition',
+]
+scope = data['scope_lock']
+corpus = []
+for key in ('non_goals', 'prohibited_advancement_topics', 'default_prohibitions'):
+    value = scope.get(key, [])
+    if isinstance(value, list):
+        corpus.extend(value)
+    else:
+        corpus.append(str(value))
+joined = '\n'.join(corpus).lower()
+missing = [item for item in required_items if item.lower() not in joined]
+scope_lock_complete = not missing
+print(f'ledger_path={path}')
+print(f'scope_lock_complete={str(scope_lock_complete).lower()}')
+print(f'missing_scope_items={missing}')
+if not scope_lock_complete:
+    raise SystemExit(1)
+PY
+
+Output
+------
+ledger_path=.sisyphus/evidence/plan-12/blocker-ledger.json
+scope_lock_complete=true
+missing_scope_items=[]
+
+Result
+------
+exit_code=0

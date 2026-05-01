@@ -1,0 +1,218 @@
+{
+  "plan": 12,
+  "task": 1,
+  "task_slug": "blocker-ledger",
+  "timestamp": "2026-05-01T00:00:00Z",
+  "used_stash": false,
+  "purpose": "Single authoritative Plan 12 ledger for named Plan 11 rereview blockers and scope lock boundaries.",
+  "review_scope": {
+    "current_goal": "Close Plan 11 rereview blockers and security/scope credibility gaps without advancing to the observation + recipient gate audit.",
+    "required_blocker_ids": [
+      "roadmap_overclaim_mismatch",
+      "stale_authority_rationale",
+      "circular_canonical_sources",
+      "timestamp_precision_mismatch",
+      "readme_mechanical_pass_overclaim",
+      "f1_f3_rerun_reject",
+      "historical_tmp_sqlite_incident",
+      "tracked_audit_doc_scope_drift",
+      "absolute_path_leakage"
+    ]
+  },
+  "scope_lock": {
+    "allowed_edit_surface": [
+      ".sisyphus/evidence/plan-11/*",
+      ".sisyphus/evidence/plan-12/*",
+      ".sisyphus/evidence/plan-10/* only if a stale cross-plan reference used by Plan 11 authority claims requires correction",
+      "docs/wrapper-first-seam-sufficiency-audit-entry.md only for narrow scope-status neutralization or classification",
+      "README.md only if the current tracked status narrative participates directly in a review blocker"
+    ],
+    "default_prohibitions": [
+      "No blocker repair work is performed by this ledger task; this file only catalogs blockers and locks scope.",
+      "No roadmap advancement claim is authorized by Plan 12 Task 1.",
+      "No source/test edit default prohibition exception is granted here."
+    ],
+    "non_goals": [
+      "observation/recipient audit execution",
+      "live transport",
+      "production wrapper",
+      "Hermes patch",
+      "webhook",
+      "installer",
+      "queue/retry/dedupe/reconcile",
+      "streaming/actions/component update",
+      "source/test edit default prohibition"
+    ],
+    "prohibited_advancement_topics": [
+      "Do not advance from Plan 11 rereview closure repair into the observation + recipient gate audit.",
+      "Do not implement or promise live transport, production wrapper deployment, or Hermes forced-seam work.",
+      "Do not introduce webhook endpoint/server/request URL/signature handling scope.",
+      "Do not introduce installer/check/update/uninstall script scope.",
+      "Do not introduce queue, retry, dedupe, reconcile, or other production recovery-engine scope.",
+      "Do not introduce streaming/process-message cardification, card actions, interactive callbacks, or component-level partial update scope.",
+      "Do not edit src/** or tests/** by default; any future exception must be justified in a later final packet."
+    ]
+  },
+  "blockers": [
+    {
+      "blocker_id": "roadmap_overclaim_mismatch",
+      "source_review": "goal_review",
+      "supporting_reviews": [
+        "qa_review",
+        "roadmap_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/task-5-roadmap-overclaim-check.txt",
+        ".sisyphus/evidence/plan-11/task-6-regression-and-scope-check.txt",
+        ".sisyphus/evidence/plan-11/final-consistency-verification.json",
+        ".sisyphus/evidence/plan-11/f1-compliance-audit-rerun.txt"
+      ],
+      "blocker_class": "roadmap_consistency",
+      "summary": "Plan 11 roadmap-overclaim QA output, regression summary, and final consistency packet disagree on whether flagged roadmap phrases are passing contextual hits or blocking mismatches.",
+      "disposition_plan": "Keep the blocker open until Plan 11 roadmap-overclaim artifacts share one scan contract, one hit list, and one verdict without authorizing roadmap advancement.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "stale_authority_rationale",
+      "source_review": "goal_review",
+      "supporting_reviews": [
+        "qa_review",
+        "quality_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+        ".sisyphus/evidence/plan-11/f1-compliance-audit-rerun.txt",
+        ".sisyphus/evidence/plan-11/f3-manual-qa-rerun.txt",
+        ".sisyphus/evidence/plan-9/task-7-decision-complete.json",
+        ".sisyphus/evidence/plan-10/README.md"
+      ],
+      "blocker_class": "authority_truthfulness",
+      "summary": "Authority-matrix notes still describe repaired Plan 9 Trigger 1/2 posture and Plan 10 README posture using outdated contradiction language.",
+      "disposition_plan": "Refresh the authority matrix so rationale mirrors current file content, removes stale contradiction wording, and cites first-order evidence before synthesized explanations.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "circular_canonical_sources",
+      "source_review": "quality_review",
+      "supporting_reviews": [
+        "qa_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+        ".sisyphus/evidence/plan-11/task-1-claim-matrix-check.txt",
+        ".sisyphus/evidence/plan-11/task-1-future-only-check.txt",
+        ".sisyphus/evidence/plan-11/f2-quality-review-rerun.txt"
+      ],
+      "blocker_class": "authority_provenance",
+      "summary": "Plan 11 still treats synthesized or QA echo artifacts as canonical authority for facts that should flow from raw or first-order derived evidence.",
+      "disposition_plan": "Repair provenance into a one-way hierarchy of raw/current state -> first-order derived evidence -> matrices/final validations -> narrative summaries, with no self-canonical or QA-canonical loops.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "timestamp_precision_mismatch",
+      "source_review": "quality_review",
+      "supporting_reviews": [
+        "qa_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/task-2-artifact-gap-resolution.json",
+        ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+        ".sisyphus/evidence/plan-11/task-4-envelope-and-vocabulary-check.json",
+        ".sisyphus/evidence/plan-11/final-consistency-verification.json"
+      ],
+      "blocker_class": "json_envelope_consistency",
+      "summary": "Active Plan 11 JSON evidence mixes second-level and microsecond-level timestamp precision, undermining a single mechanical envelope convention.",
+      "disposition_plan": "Define one active timestamp precision convention for Plan 11/12 JSON evidence, or explicitly classify any exceptions as inactive/historical before final rereview packaging.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "readme_mechanical_pass_overclaim",
+      "source_review": "quality_review",
+      "supporting_reviews": [
+        "goal_review",
+        "qa_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/README.md",
+        ".sisyphus/evidence/plan-11/task-5-roadmap-overclaim-check.txt",
+        ".sisyphus/evidence/plan-11/task-6-regression-and-scope-check.txt",
+        ".sisyphus/evidence/plan-11/final-consistency-verification.json",
+        ".sisyphus/evidence/plan-11/f2-quality-review-rerun.txt"
+      ],
+      "blocker_class": "narrative_overclaim",
+      "summary": "Plan 11 README says all mechanical checks pass even while referenced roadmap-scan and indexing evidence remains contradictory or stale.",
+      "disposition_plan": "Do not allow README pass-summary language to survive unless every indexed mechanical artifact agrees with the same truthful status and scan contract.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "f1_f3_rerun_reject",
+      "source_review": "goal_review",
+      "supporting_reviews": [
+        "qa_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/f1-compliance-audit-rerun.txt",
+        ".sisyphus/evidence/plan-11/f2-quality-review-rerun.txt",
+        ".sisyphus/evidence/plan-11/f3-manual-qa-rerun.txt",
+        ".sisyphus/evidence/plan-11/f4-scope-fidelity-rerun.txt"
+      ],
+      "blocker_class": "rereview_readiness",
+      "summary": "Plan 11 reruns still end with F1/F2/F3 = REJECT and only F4 = APPROVE, so the package is not ready for credible closeout claims.",
+      "disposition_plan": "Track F1-F3 rejection as a blocker until authority, roadmap, and live-state truthfulness defects are repaired and a fresh final rereview wave can reach all-APPROVE status.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "historical_tmp_sqlite_incident",
+      "source_review": "security_review",
+      "supporting_reviews": [
+        "qa_review"
+      ],
+      "source_paths": [
+        "tmp/plan8-missing-env/harness/run.json",
+        "tmp/plan8-missing-env/harness/summary.json",
+        "tmp/plan8-unsupported/bridge.sqlite",
+        "tmp/plan8-unsupported/bridge.sqlite-shm",
+        "tmp/plan8-unsupported/bridge.sqlite-wal",
+        "tmp/plan8-unsupported/harness/run.json",
+        "tmp/plan8-unsupported/harness/summary.json"
+      ],
+      "historical_commit": "761d048",
+      "blocker_class": "historical_security_incident",
+      "summary": "Commit 761d048 introduced tracked raw tmp and SQLite artifacts, so Plan 12 must distinguish current-state cleanliness from historical incident disposition instead of implying the risk never existed.",
+      "disposition_plan": "Record bounded historical impact, current tracked absence proof, recurrence guardrails, and residual risk without rewriting history or claiming erasure.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "tracked_audit_doc_scope_drift",
+      "source_review": "security_review",
+      "supporting_reviews": [
+        "roadmap_review",
+        "scope_review"
+      ],
+      "source_paths": [
+        "docs/wrapper-first-seam-sufficiency-audit-entry.md",
+        ".sisyphus/evidence/plan-11/f4-scope-fidelity-rerun.txt",
+        ".sisyphus/plans/12-plan-11-rereview-security-closure.md"
+      ],
+      "blocker_class": "scope_boundary_credibility",
+      "summary": "The tracked wrapper-first audit entry can be misread as broad roadmap authorization unless it is explicitly classified as archival or narrowly neutralized within the current closure-repair scope.",
+      "disposition_plan": "Keep the doc limited to historical inventory or narrow neutralization only; do not let it function as active authorization for observation/recipient or wrapper-implementation advancement.",
+      "blocking": true
+    },
+    {
+      "blocker_id": "absolute_path_leakage",
+      "source_review": "security_review",
+      "supporting_reviews": [
+        "qa_review"
+      ],
+      "source_paths": [
+        ".sisyphus/evidence/plan-11/task-3-authority-alignment.txt",
+        ".sisyphus/evidence/plan-11/task-3-boundary-truthfulness.txt"
+      ],
+      "blocker_class": "deliverable_privacy_hygiene",
+      "summary": "Plan 11 local evidence still exposes absolute workstation paths, which must be redacted or explicitly classified as non-shareable local-only evidence in any deliverable-facing closure packet.",
+      "disposition_plan": "Audit Plan 11/12 deliverable-facing artifacts for absolute local paths, redact or classify any remaining path-bearing files, and keep local-only evidence out of authoritative shareable summaries.",
+      "blocking": true
+    }
+  ]
+}
