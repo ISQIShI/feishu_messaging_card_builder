@@ -37,6 +37,7 @@ feishu_messaging_card_builder/
 ## CURRENT PHASE
 
 - Phase 3: Design freeze and Runtime Bridge Harness verification (Plan 7/8).
+- Current status: current_blocked_repair (Plan 14).
 - Verify core logic & harness with `.venv/bin/python -m pytest`.
 - Verify runtime contract via `.venv/bin/python -m feishu_messaging_card_builder.cli runtime-bridge harness`.
 

@@ -10,7 +10,7 @@
 
 ## 当前阶段
 
-仓库已完成 Phase 2 可靠性加固（Plan 5/6）与 Phase 3 运行时桥接审核（Plan 8 complete），并进入 Phase 3 包装器先行切口充分性审计（Plan 9）。当前代码实现了以下核心能力：
+仓库已完成 Phase 2 可靠性加固（Plan 5/6）与 Phase 3 运行时桥接审核（Plan 8 complete）；当前处于 Plan 14 current blocked repair 状态，正在执行 narrow status audit 与 authority reconciliation。当前代码实现了以下核心能力：
 
 - 桥接验证：实现运行时桥接层（Runtime Bridge Harness）的离线验证框架，用于模拟 Hermes 最终回复的双向交付、身份导出与状态生命周期同步。
 - 离线环境：验证工具在受控 mock 环境下运行，验证逻辑与契约正确性，**不包含** 生产环境的 live 传输层（Live Transport）或对 Hermes 的补丁（Patch）。

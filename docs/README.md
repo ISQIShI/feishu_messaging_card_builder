@@ -18,6 +18,6 @@
 12. `open-questions.md`：最后整理目前依然悬而未决的问题。
 13. `AGENTS.md`：面向代码代理的文档工作规则。
 
-核心结论：Phase 1 & 2 验证了“消息拦截 -> 实体创建 -> 动态更新”链路的技术可行性与可靠性。Phase 3 通过运行时桥接框架（Runtime Bridge Harness）在 mock 环境下收敛了 Hermes 与飞书卡片之间的事件契约，并完成了设计冻结。
+核心结论：Phase 1 & 2 验证了“消息拦截 -> 实体创建 -> 动态更新”链路的技术可行性与可靠性。Phase 3 通过运行时桥接框架（Runtime Bridge Harness）在 mock 环境下收敛了 Hermes 与飞书卡片之间的事件契约，并完成了设计冻结。当前处于 Plan 14 current blocked repair 状态。
 
 当前约束：只考虑 Hermes Feishu/Lark websocket 连接方式；任何对 Hermes 源码或其他非本项目内容的修改，都必须可安装、可卸载、可更新、可审计和可恢复。
