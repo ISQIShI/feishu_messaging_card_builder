@@ -1,0 +1,16 @@
+Plan 12 Task 2 Authority Non-Circular Check
+===========================================
+
+Command:
+  .venv/bin/python - <<'PY'  # validation script omitted in evidence summary
+
+Output:
+  circular_canonical_sources=[]
+  qa_canonical_sources=[]
+  hierarchy=["raw_current_state", "first_order_derived", "matrices_validations", "narrative_summaries"]
+
+Result: PASS
+
+Notes:
+- Proposed canonical replacements point downward to raw/current-state or first-order derived evidence only.
+- No proposed canonical replacement uses the Plan 12 repair file itself or a Plan 11 QA echo artifact when a stronger source exists.

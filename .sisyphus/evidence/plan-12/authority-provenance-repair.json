@@ -1,0 +1,144 @@
+{
+  "plan": 12,
+  "task": 2,
+  "task_slug": "authority-provenance-repair",
+  "timestamp": "2026-05-01T00:00:00Z",
+  "preventive_documentation": true,
+  "current_repo_observation": {
+    "plan_11_evidence_directory_exists": true,
+    "observed_plan_11_path": ".sisyphus/evidence/plan-11/",
+    "note": "The task brief assumed Plan 11 evidence files did not exist. Current tracked repo state contradicts that assumption, so this file does not claim a historical Plan 11 repair occurred. It documents the authority model that should govern any future rereview closure work and the repairs that would have been required."
+  },
+  "source_hierarchy": [
+    "raw_current_state",
+    "first_order_derived",
+    "matrices_validations",
+    "narrative_summaries"
+  ],
+  "hierarchy_definitions": {
+    "raw_current_state": {
+      "authority": "highest",
+      "allowed_examples": [
+        "current tracked file contents under .sisyphus/evidence/plan-9/ through plan-12/",
+        "raw command outputs such as git status, git diff --check, pytest, and CLI help output captured without narrative reinterpretation"
+      ],
+      "rule": "If a fact can be established directly from current tracked content or raw command output, no synthesized artifact may become canonical for that fact."
+    },
+    "first_order_derived": {
+      "authority": "secondary",
+      "allowed_examples": [
+        ".sisyphus/evidence/plan-10/task-6-f1-f4-index.json",
+        ".sisyphus/evidence/plan-11/task-3-authority-alignment.txt when it names exact upstream artifacts and only summarizes them"
+      ],
+      "rule": "A first-order derived artifact must name its raw inputs and only normalize or aggregate them once."
+    },
+    "matrices_validations": {
+      "authority": "tertiary",
+      "allowed_examples": [
+        ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+        ".sisyphus/evidence/plan-11/final-consistency-verification.json"
+      ],
+      "rule": "Matrices and final validations may evaluate or cross-reference facts, but they must never be canonical for facts that are already available from raw or first-order sources."
+    },
+    "narrative_summaries": {
+      "authority": "lowest",
+      "allowed_examples": [
+        ".sisyphus/evidence/plan-10/README.md",
+        ".sisyphus/evidence/plan-11/README.md"
+      ],
+      "rule": "Narrative summaries may describe status, but they cannot authorize roadmap advancement or override raw evidence."
+    }
+  },
+  "plan_11_issues": [
+    {
+      "issue_id": "circular_canonical_sources",
+      "pattern": "The Plan 11 authority matrix listed itself as the canonical source for posture facts such as plan_9_pass_ready_posture, plan_10_closeout_posture, and review_provenance_latest.",
+      "why_invalid": "A matrix is a synthesized classification layer and cannot become the canonical source for the same facts it synthesizes."
+    },
+    {
+      "issue_id": "qa_artifacts_used_as_canonical",
+      "pattern": "Plan 11 QA echo files such as task-1-future-only-check.txt and task-1-claim-matrix-check.txt were used as canonical sources for next_step_authorization and boundary_cleanliness.",
+      "why_invalid": "QA outputs only verify claims about upstream evidence; they should not outrank the current tracked sources they inspect."
+    },
+    {
+      "issue_id": "stale_plan10_readme_rationale",
+      "pattern": "The matrix notes said the current Plan 10 README overclaimed PASS-ready and next-step authorization.",
+      "why_invalid": "Current tracked Plan 10 README language is conservative and explicitly says the rereview posture is non-approving and roadmap work remains entry-only."
+    },
+    {
+      "issue_id": "stale_trigger_posture_rationale",
+      "pattern": "The matrix treated the Plan 9 decision-complete file as if it reflected an older trigger posture that was superseded, even though current tracked Plan 9/10 evidence aligns on Trigger 1 and Trigger 2 being inconclusive.",
+      "why_invalid": "When the current raw/first-order files agree, notes must describe present alignment rather than a stale mismatch story."
+    }
+  ],
+  "plan_12_repair": {
+    "authority_flow": [
+      "Read current tracked evidence and raw command output first.",
+      "Promote only first-order derived artifacts that name those raw inputs.",
+      "Use matrices/final validations only as audit summaries that point downward to the canonical sources.",
+      "Keep README and narrative summaries descriptive, never authoritative."
+    ],
+    "non_goals": [
+      "Do not claim Plan 11 was repaired in history when this task only documents the correct model.",
+      "Do not broaden authority rules into roadmap execution authorization.",
+      "Do not treat future-entry documents as current authorization.",
+      "Do not use synthesized or QA artifacts as canonical sources when raw or first-order evidence exists."
+    ],
+    "security_scope_closure_for_plan_12": {
+      "scope": "Prevent future Plan 11/12 rereview packets from deriving security or roadmap authority from summaries, QA echoes, or future-entry artifacts.",
+      "closure_rule": "Current-state proof must come from current tracked repo state and raw command outputs; historical incidents remain historical and may not be silently converted into current authorization."
+    }
+  },
+  "canonical_replacements": {
+    "plan_9_pass_ready_posture": {
+      "replace_circular_source": ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+      "replacement_tier": "first_order_derived",
+      "replacement_sources": [
+        ".sisyphus/evidence/plan-10/task-6-f1-f4-index.json",
+        ".sisyphus/evidence/plan-10/f1-compliance-audit.txt",
+        ".sisyphus/evidence/plan-10/f2-quality-review.txt",
+        ".sisyphus/evidence/plan-10/f3-manual-qa.txt"
+      ],
+      "replacement_rule": "Use the review-wave index plus the named review artifacts to show that current rereview posture is non-approving; the matrix may summarize but not canonize that result."
+    },
+    "plan_10_closeout_posture": {
+      "replace_circular_source": ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+      "replacement_tier": "raw_current_state",
+      "replacement_sources": [
+        ".sisyphus/evidence/plan-10/README.md",
+        ".sisyphus/evidence/plan-10/task-6-f1-f4-index.json"
+      ],
+      "replacement_rule": "The tracked Plan 10 README states the current posture directly, and the review-wave index provides the first-order support for why PASS-ready is not allowed."
+    },
+    "review_provenance_latest": {
+      "replace_circular_source": ".sisyphus/evidence/plan-11/authority-claim-matrix.json",
+      "replacement_tier": "first_order_derived",
+      "replacement_sources": [
+        ".sisyphus/evidence/plan-10/task-6-f1-f4-index.json",
+        ".sisyphus/evidence/plan-10/f1-compliance-audit.txt",
+        ".sisyphus/evidence/plan-10/f2-quality-review.txt",
+        ".sisyphus/evidence/plan-10/f3-manual-qa.txt",
+        ".sisyphus/evidence/plan-10/f4-scope-fidelity.txt"
+      ],
+      "replacement_rule": "Review provenance must point to the actual review artifacts and their first-order index rather than to a later matrix that restates them."
+    },
+    "next_step_authorization": {
+      "replace_qa_source": ".sisyphus/evidence/plan-11/task-1-future-only-check.txt",
+      "replacement_tier": "raw_current_state",
+      "replacement_sources": [
+        ".sisyphus/evidence/plan-10/README.md",
+        ".sisyphus/evidence/plan-10/observation-recipient-gate-entry-criteria.md"
+      ],
+      "replacement_rule": "Authorization posture comes from the current tracked README and the future-entry criteria file, which together show entry-only status and forbid current execution authorization."
+    },
+    "boundary_cleanliness": {
+      "replace_qa_source": ".sisyphus/evidence/plan-11/task-1-claim-matrix-check.txt",
+      "replacement_tier": "raw_current_state",
+      "replacement_sources": [
+        "current raw git status output captured during rereview",
+        "current raw git diff --check output captured during rereview"
+      ],
+      "replacement_rule": "Boundary cleanliness is a current-state fact and must come from contemporaneous raw git outputs, not from a QA echo about another matrix."
+    }
+  }
+}

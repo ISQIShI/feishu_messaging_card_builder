@@ -1,0 +1,20 @@
+Plan 12 Task 2 Stale Rationale Check
+====================================
+
+Command:
+  .venv/bin/python - <<'PY'  # validation script omitted in evidence summary
+
+Output:
+  stale_rationale=["plan_9_pass_ready_posture_still_self_canonical_in_plan11_matrix", "plan_10_closeout_posture_still_self_canonical_in_plan11_matrix", "review_provenance_latest_still_self_canonical_in_plan11_matrix"]
+  stale_rationale_patterns_documented=true
+  documented_patterns=
+    - Do not call the current Plan 10 README an overclaim when it already states non-approving rereview posture and entry-only roadmap scope.
+    - Do not describe Trigger 1/2 posture as superseded or mismatched when current tracked Plan 9/10 evidence agrees on inconclusive status.
+    - Do not use a matrix or final-validation summary as canonical for facts already present in raw review artifacts or current tracked README text.
+    - Do not treat historical PASS-ready wording or future-entry material as current authorization.
+
+Result: PASS (preventive documentation records unresolved Plan 11 repair targets truthfully)
+
+Notes:
+- This check is preventive: it records the stale-rationale patterns that Plan 12 must avoid in future rereview closure work.
+- Current repo state still shows self-canonical Plan 11 matrix entries, so the output treats them as documented repair targets rather than falsely claiming they were already fixed here.
