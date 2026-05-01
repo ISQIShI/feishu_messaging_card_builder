@@ -1,0 +1,6 @@
+Scenario: Historical incident is bounded without false erasure claim
+exit_code=0
+historical_commit=761d048
+current_absence_proof_present=true
+history_erasure_claims=[]
+incident_disposition=bounded

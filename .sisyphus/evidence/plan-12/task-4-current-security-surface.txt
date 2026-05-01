@@ -1,0 +1,151 @@
+Scenario: Current-state security surface is clean
+exit_code=0
+pre_plan_12_base=55e515f5857474aad92aca6d4e9abe9a260a998b
+
+[git_status_short]
+<clean>
+
+[git_diff_name_status]
+M	.gitignore
+A	.sisyphus/evidence/plan-12/authority-provenance-repair.json
+A	.sisyphus/evidence/plan-12/blocker-ledger.json
+A	.sisyphus/evidence/plan-12/task-1-blocker-ledger-check.txt
+A	.sisyphus/evidence/plan-12/task-1-scope-lock-check.txt
+A	.sisyphus/evidence/plan-12/task-2-authority-noncircular-check.txt
+A	.sisyphus/evidence/plan-12/task-2-stale-rationale-check.txt
+A	.sisyphus/evidence/plan-2/00-notes.md
+A	.sisyphus/evidence/plan-2/01-doctor.txt
+A	.sisyphus/evidence/plan-2/01-python-version.txt
+A	.sisyphus/evidence/plan-2/01-secret-scan.txt
+A	.sisyphus/evidence/plan-2/02-recipient-redacted.json
+A	.sisyphus/evidence/plan-2/03-card-create-dry-run.txt
+A	.sisyphus/evidence/plan-2/03-card-create-redacted.json
+A	.sisyphus/evidence/plan-2/04-message-send-dry-run-redacted.txt
+A	.sisyphus/evidence/plan-2/04-message-send-redacted.json
+A	.sisyphus/evidence/plan-2/05-card-update-dry-run-redacted.txt
+A	.sisyphus/evidence/plan-2/05-card-update-redacted.json
+A	.sisyphus/evidence/plan-2/06-stale-sequence-redacted.json
+A	.sisyphus/evidence/plan-2/07-contract-delta.md
+A	.sisyphus/evidence/plan-2/08-pytest.txt
+A	.sisyphus/evidence/plan-2/09-cli-help.txt
+A	.sisyphus/evidence/plan-2/10-diff-check.txt
+A	.sisyphus/evidence/plan-2/11-stale-reference-audit.txt
+A	.sisyphus/evidence/plan-2/12-evidence-hygiene.txt
+A	.sisyphus/evidence/plan-3/task-1-contract-audit.txt
+A	.sisyphus/evidence/plan-3/task-1-scope-guardrails.txt
+A	.sisyphus/evidence/plan-3/task-2-image-key-redaction.txt
+A	.sisyphus/evidence/plan-3/task-2-plan2-hygiene.json
+A	.sisyphus/evidence/plan-3/task-3-rejected-first-send-retry.json
+A	.sisyphus/evidence/plan-3/task-3-second-send-boundary.json
+A	.sisyphus/evidence/plan-3/task-5-restart-safe-update.json
+A	.sisyphus/evidence/plan-3/task-7-cli-diffcheck.txt
+A	.sisyphus/evidence/plan-3/task-7-pytest-full.txt
+A	.sisyphus/evidence/plan-3/task-8-closeout-audit.txt
+A	.sisyphus/evidence/plan-3/task-8-final-hygiene.json
+A	.sisyphus/evidence/plan-4/task-1-contract-delta-audit.txt
+A	.sisyphus/evidence/plan-4/task-1-scope-exclusion-audit.txt
+A	.sisyphus/evidence/plan-4/task-2-changed-content-pending.txt
+A	.sisyphus/evidence/plan-4/task-2-changed-content-states.txt
+A	.sisyphus/evidence/plan-4/task-3-expired-inspect.json
+A	.sisyphus/evidence/plan-4/task-3-expired-process.json
+A	.sisyphus/evidence/plan-4/task-3-expiry-gate.txt
+A	.sisyphus/evidence/plan-4/task-4-failure-redaction.txt
+A	.sisyphus/evidence/plan-4/task-4-safe-inspect.json
+A	.sisyphus/evidence/plan-4/task-5-live-placeholder.txt
+A	.sisyphus/evidence/plan-4/task-5-retry-classifier.txt
+A	.sisyphus/evidence/plan-4/task-7-closeout-index.md
+A	.sisyphus/evidence/plan-4/task-7-final-commands.txt
+A	.sisyphus/evidence/plan-4/task-7-final-hygiene.json
+A	.sisyphus/evidence/plan-4/task-7-stale-ref-audit.txt
+A	.sisyphus/evidence/plan-8/task-8-roadmap-prep-scan.txt
+A	.sisyphus/evidence/plan-8/task-8-seam-criteria.txt
+A	.sisyphus/evidence/plan-8/wrapper-seam-audit-entry-criteria.md
+A	AGENTS.md
+M	README.md
+D	check.sh
+D	config.example.yaml
+A	docs/AGENTS.md
+A	docs/README.md
+A	docs/evidence-privacy-taxonomy.md
+A	docs/feishu-card-research.md
+A	docs/git-standards.md
+D	docs/git-workflow.md
+A	docs/hermes-outbound-seam-memo.md
+A	docs/hermes-research.md
+D	docs/migrations/cardkit-formal-migration/checklist.md
+D	docs/migrations/cardkit-formal-migration/plan.md
+A	docs/open-questions.md
+A	docs/phase-1-live-validation.md
+A	docs/phase-1-prototype-decisions.md
+A	docs/phase-2-reliability-contract.md
+A	docs/phase-3-runtime-bridge-design.md
+A	docs/project-direction.md
+A	docs/roadmap.md
+A	docs/wrapper-first-seam-sufficiency-audit-entry.md
+D	feishu_card_build/__init__.py
+D	feishu_card_build/__main__.py
+D	feishu_card_build/builder.py
+D	feishu_card_build/cli.py
+D	feishu_card_build/config.py
+D	feishu_card_build/content.py
+D	feishu_card_build/feishu_elements.py
+D	feishu_card_build/footer.py
+D	feishu_card_build/parsing.py
+D	install.sh
+A	pyproject.toml
+D	run.py.patch
+A	src/feishu_messaging_card_builder/__init__.py
+A	src/feishu_messaging_card_builder/bridge.py
+A	src/feishu_messaging_card_builder/cli.py
+A	src/feishu_messaging_card_builder/feishu_client.py
+A	src/feishu_messaging_card_builder/parser.py
+A	src/feishu_messaging_card_builder/renderer.py
+A	src/feishu_messaging_card_builder/runtime_bridge.py
+A	src/feishu_messaging_card_builder/runtime_event.py
+A	src/feishu_messaging_card_builder/state.py
+A	tests/__init__.py
+A	tests/fixtures/README.md
+A	tests/fixtures/hermes_final_reply.json
+A	tests/fixtures/hermes_final_reply_duplicate.json
+A	tests/fixtures/hermes_oversize_reply.json
+A	tests/fixtures/hermes_unsupported_attachment.json
+A	tests/fixtures/runtime_bridge/README.md
+A	tests/fixtures/runtime_bridge/duplicate_text_turn.json
+A	tests/fixtures/runtime_bridge/malformed_event.json
+A	tests/fixtures/runtime_bridge/minimal_text_turn.json
+A	tests/fixtures/runtime_bridge/missing_recipient.json
+A	tests/fixtures/runtime_bridge/unsupported_streaming_chunk.json
+A	tests/fixtures/runtime_bridge/unsupported_tool_payload.json
+D	tests/test_backup_metadata.py
+A	tests/test_bridge_orchestration.py
+A	tests/test_cli.py
+A	tests/test_failures.py
+D	tests/test_feishu_card_build.py
+A	tests/test_feishu_client.py
+D	tests/test_package_entrypoints.py
+D	tests/test_patch_module_invocation.py
+A	tests/test_renderer.py
+A	tests/test_runtime_bridge.py
+A	tests/test_runtime_bridge_cli.py
+A	tests/test_runtime_event.py
+A	tests/test_scope_guards.py
+A	tests/test_smoke.py
+A	tests/test_state.py
+D	uninstall.sh
+D	update.sh
+
+[tracked_tmp_sqlite_scan]
+tracked_tmp_sqlite_matches=[]
+tracked_tmp_sqlite_clean=true
+
+[absolute_path_scan]
+deliverable_facing_matches=[]
+local_only_non_shareable_evidence=[{"path": ".sisyphus/evidence/plan-11/task-3-authority-alignment.txt", "matches": ["/home/zaixiaqishi/MyStorage/Project/feishu_messaging_card_builder"]}, {"path": ".sisyphus/evidence/plan-11/task-3-boundary-truthfulness.txt", "matches": ["/home/zaixiaqishi/MyStorage/Project/feishu_messaging_card_builder"]}]
+deliverable_facing_clean=true
+
+[forbidden_scope_scan]
+changed_paths=[]
+forbidden_path_hits=[]
+forbidden_token_hits=[]
+forbidden_scope_clean=true
+result=no prohibited current-state implementation/scope violations
