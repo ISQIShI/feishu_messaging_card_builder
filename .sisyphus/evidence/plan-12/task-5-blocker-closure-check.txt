@@ -1,0 +1,57 @@
+Plan 12 Task 5 — Blocker Closure Check
+======================================
+
+Command
+-------
+python3 - <<'PY'
+import json
+from pathlib import Path
+root = Path('.')
+ledger = json.loads((root / '.sisyphus/evidence/plan-12/blocker-ledger.json').read_text())
+packet = json.loads((root / '.sisyphus/evidence/plan-12/final-rereview-packet.json').read_text())
+required_blockers = [item['blocker_id'] for item in ledger['blockers']]
+packet_blockers = packet['blocker_dispositions']
+allowed = {'resolved', 'non_blocking_partial', 'deferred_not_current_scope'}
+missing_blockers = [bid for bid in required_blockers if bid not in packet_blockers]
+invalid_dispositions = {bid: packet_blockers[bid].get('disposition') for bid in packet_blockers if packet_blockers[bid].get('disposition') not in allowed}
+unresolved_blockers = [bid for bid in required_blockers if packet_blockers.get(bid, {}).get('disposition') == 'unresolved' or bid not in packet_blockers]
+review_wave = packet.get('review_wave', {})
+non_approve_reviews = [name for name in ['F1', 'F2', 'F3', 'F4'] if review_wave.get(name) != 'APPROVE']
+review_files = {
+    'F1': '.sisyphus/evidence/plan-12/f1-compliance-audit.txt',
+    'F2': '.sisyphus/evidence/plan-12/f2-evidence-quality.txt',
+    'F3': '.sisyphus/evidence/plan-12/f3-security-scope.txt',
+    'F4': '.sisyphus/evidence/plan-12/f4-scope-fidelity.txt',
+}
+review_file_mismatches = []
+for name, rel in review_files.items():
+    text = (root / rel).read_text()
+    if 'Verdict: APPROVE' not in text:
+        review_file_mismatches.append(name)
+closure_statement = packet.get('closure_statement')
+print('required_blockers=' + json.dumps(required_blockers, ensure_ascii=False))
+print('missing_blockers=' + json.dumps(missing_blockers, ensure_ascii=False))
+print('invalid_dispositions=' + json.dumps(invalid_dispositions, ensure_ascii=False, sort_keys=True))
+print('unresolved_blockers=' + json.dumps(unresolved_blockers, ensure_ascii=False))
+print('review_wave=' + json.dumps(review_wave, ensure_ascii=False, sort_keys=True))
+print('non_approve_reviews=' + json.dumps(non_approve_reviews, ensure_ascii=False))
+print('review_file_mismatches=' + json.dumps(review_file_mismatches, ensure_ascii=False))
+print('closure_statement=' + json.dumps(closure_statement, ensure_ascii=False))
+if missing_blockers or invalid_dispositions or unresolved_blockers or non_approve_reviews or review_file_mismatches or closure_statement != 'Plan 12 does not authorize observation + recipient audit execution':
+    raise SystemExit(1)
+PY
+
+Output
+------
+required_blockers=["roadmap_overclaim_mismatch", "stale_authority_rationale", "circular_canonical_sources", "timestamp_precision_mismatch", "readme_mechanical_pass_overclaim", "f1_f3_rerun_reject", "historical_tmp_sqlite_incident", "tracked_audit_doc_scope_drift", "absolute_path_leakage"]
+missing_blockers=[]
+invalid_dispositions={}
+unresolved_blockers=[]
+review_wave={"F1": "APPROVE", "F2": "APPROVE", "F3": "APPROVE", "F4": "APPROVE"}
+non_approve_reviews=[]
+review_file_mismatches=[]
+closure_statement="Plan 12 does not authorize observation + recipient audit execution"
+
+Result
+------
+exit_code=0

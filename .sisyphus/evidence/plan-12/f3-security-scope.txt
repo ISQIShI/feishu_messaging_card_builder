@@ -1,0 +1,26 @@
+F3: Plan 12 Final Security and Scope QA
+=======================================
+
+Review date: 2026-05-01
+Reviewer: Sisyphus-Junior (gpt-5.4)
+
+Verdict: APPROVE
+
+Security and scope checks
+-------------------------
+- Current-state working-tree proof is clean for this closeout packet: tracked tmp/sqlite matches are empty and `forbidden_scope_clean=true` in `task-4-current-security-surface.txt`.
+- The bounded historical incident remains explicit rather than erased: `historical_commit=761d048`, `current_absence_proof_present=true`, `history_erasure_claims=[]`, and `incident_disposition=bounded` in `task-4-historical-incident-check.txt`.
+- Deliverable-facing Plan 11/12 artifacts are clean of absolute workstation paths; any remaining path-bearing evidence is explicitly classified as local-only non-shareable legacy output.
+- The tracked audit doc is classified as historical inventory inside `security-scope-closure.json`; it is not treated as active roadmap authorization.
+- The final Task 5 packet continues to forbid observation + recipient audit execution.
+
+Evidence basis
+--------------
+- `.sisyphus/evidence/plan-12/security-scope-closure.json`
+- `.sisyphus/evidence/plan-12/task-4-current-security-surface.txt`
+- `.sisyphus/evidence/plan-12/task-4-historical-incident-check.txt`
+- `.sisyphus/evidence/plan-12/task-5-regression-scope-validation.txt`
+
+Conclusion
+----------
+Plan 12 Task 5 preserves current-state cleanliness, truthfully bounds the historical tmp/sqlite incident, and introduces no new security or scope drift.

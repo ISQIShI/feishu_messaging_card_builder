@@ -1,0 +1,129 @@
+{
+  "plan": 12,
+  "task": 5,
+  "task_slug": "final-rereview-packet",
+  "timestamp": "2026-05-01T00:00:00Z",
+  "used_stash": false,
+  "overall_status": "approved_rereview_closeout",
+  "inputs": {
+    "blocker_ledger": ".sisyphus/evidence/plan-12/blocker-ledger.json",
+    "authority_provenance_repair": ".sisyphus/evidence/plan-12/authority-provenance-repair.json",
+    "roadmap_scan_contract": ".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json",
+    "roadmap_scan_agreement": ".sisyphus/evidence/plan-12/task-3-roadmap-scan-agreement.txt",
+    "roadmap_no_authorization": ".sisyphus/evidence/plan-12/task-3-no-roadmap-authorization.txt",
+    "security_scope_closure": ".sisyphus/evidence/plan-12/security-scope-closure.json",
+    "security_current_surface": ".sisyphus/evidence/plan-12/task-4-current-security-surface.txt",
+    "security_historical_incident": ".sisyphus/evidence/plan-12/task-4-historical-incident-check.txt"
+  },
+  "blocker_dispositions": {
+    "roadmap_overclaim_mismatch": {
+      "disposition": "resolved",
+      "basis": "Task 3 scan contract and agreement reconcile the shared hit list and pass-with-classification verdict without authorizing roadmap advancement.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json",
+        ".sisyphus/evidence/plan-12/task-3-roadmap-scan-agreement.txt"
+      ]
+    },
+    "stale_authority_rationale": {
+      "disposition": "resolved",
+      "basis": "Task 2 documents the current authority hierarchy and removes stale contradiction framing from the repaired provenance model.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/authority-provenance-repair.json",
+        ".sisyphus/evidence/plan-12/task-2-stale-rationale-check.txt"
+      ]
+    },
+    "circular_canonical_sources": {
+      "disposition": "resolved",
+      "basis": "Task 2 defines a one-way raw/current-state to narrative hierarchy and validates that no QA echo or synthesized artifact is canonical when a stronger source exists.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/authority-provenance-repair.json",
+        ".sisyphus/evidence/plan-12/task-2-authority-noncircular-check.txt"
+      ]
+    },
+    "timestamp_precision_mismatch": {
+      "disposition": "resolved",
+      "basis": "The final Plan 12 packet and active Task 5 JSON outputs use a single second-precision UTC `Z` convention, while older mixed-precision inputs remain classified as historical upstream evidence rather than active Plan 12 output.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/final-rereview-packet.json",
+        ".sisyphus/evidence/plan-12/f2-evidence-quality.txt"
+      ]
+    },
+    "readme_mechanical_pass_overclaim": {
+      "disposition": "resolved",
+      "basis": "Plan 12 indexing language stays contract-qualified and ties approval to the shared roadmap classification plus fresh Task 5 verification outputs.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/README.md",
+        ".sisyphus/evidence/plan-12/task-5-regression-scope-validation.txt"
+      ]
+    },
+    "f1_f3_rerun_reject": {
+      "disposition": "resolved",
+      "basis": "A fresh Task 5 rereview wave records F1-F4 as APPROVE after the blocker packet, authority repair, roadmap agreement, and security closure are all present.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/f1-compliance-audit.txt",
+        ".sisyphus/evidence/plan-12/f2-evidence-quality.txt",
+        ".sisyphus/evidence/plan-12/f3-security-scope.txt",
+        ".sisyphus/evidence/plan-12/f4-scope-fidelity.txt"
+      ]
+    },
+    "historical_tmp_sqlite_incident": {
+      "disposition": "resolved",
+      "basis": "Task 4 separates current-state cleanliness from the bounded historical 761d048 incident and preserves the non-erasure statement.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/security-scope-closure.json",
+        ".sisyphus/evidence/plan-12/task-4-historical-incident-check.txt"
+      ]
+    },
+    "tracked_audit_doc_scope_drift": {
+      "disposition": "resolved",
+      "basis": "Task 4 classifies the tracked audit doc as accepted historical inventory rather than current authorization for roadmap advancement.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/security-scope-closure.json",
+        ".sisyphus/evidence/plan-12/f4-scope-fidelity.txt"
+      ]
+    },
+    "absolute_path_leakage": {
+      "disposition": "resolved",
+      "basis": "Task 4 shows deliverable-facing artifacts are clean and classifies the remaining absolute-path hits as local-only non-shareable legacy evidence.",
+      "evidence": [
+        ".sisyphus/evidence/plan-12/security-scope-closure.json",
+        ".sisyphus/evidence/plan-12/task-4-current-security-surface.txt"
+      ]
+    }
+  },
+  "review_wave": {
+    "F1": "APPROVE",
+    "F2": "APPROVE",
+    "F3": "APPROVE",
+    "F4": "APPROVE"
+  },
+  "evidence_index": [
+    ".sisyphus/evidence/plan-12/blocker-ledger.json",
+    ".sisyphus/evidence/plan-12/task-1-blocker-ledger-check.txt",
+    ".sisyphus/evidence/plan-12/task-1-scope-lock-check.txt",
+    ".sisyphus/evidence/plan-12/authority-provenance-repair.json",
+    ".sisyphus/evidence/plan-12/task-2-authority-noncircular-check.txt",
+    ".sisyphus/evidence/plan-12/task-2-stale-rationale-check.txt",
+    ".sisyphus/evidence/plan-12/task-3-roadmap-scan-contract.json",
+    ".sisyphus/evidence/plan-12/task-3-roadmap-scan-agreement.txt",
+    ".sisyphus/evidence/plan-12/task-3-no-roadmap-authorization.txt",
+    ".sisyphus/evidence/plan-12/security-scope-closure.json",
+    ".sisyphus/evidence/plan-12/task-4-current-security-surface.txt",
+    ".sisyphus/evidence/plan-12/task-4-historical-incident-check.txt",
+    ".sisyphus/evidence/plan-12/final-rereview-packet.json",
+    ".sisyphus/evidence/plan-12/README.md",
+    ".sisyphus/evidence/plan-12/task-5-blocker-closure-check.txt",
+    ".sisyphus/evidence/plan-12/task-5-regression-scope-validation.txt",
+    ".sisyphus/evidence/plan-12/f1-compliance-audit.txt",
+    ".sisyphus/evidence/plan-12/f2-evidence-quality.txt",
+    ".sisyphus/evidence/plan-12/f3-security-scope.txt",
+    ".sisyphus/evidence/plan-12/f4-scope-fidelity.txt"
+  ],
+  "qa_results": {
+    "blocker_closure_check": ".sisyphus/evidence/plan-12/task-5-blocker-closure-check.txt",
+    "regression_scope_validation": ".sisyphus/evidence/plan-12/task-5-regression-scope-validation.txt"
+  },
+  "unresolved_blockers": [],
+  "non_approve_reviews": [],
+  "closure_statement": "Plan 12 does not authorize observation + recipient audit execution"
+}

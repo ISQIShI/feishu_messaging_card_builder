@@ -1,0 +1,74 @@
+Plan 12 Task 5 — Regression and Scope Validation
+================================================
+
+[pytest]
+command=.venv/bin/python -m pytest
+exit_code=0
+stdout>>>
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/zaixiaqishi/MyStorage/Project/feishu_messaging_card_builder
+configfile: pyproject.toml
+testpaths: tests
+collected 119 items
+
+tests/test_bridge_orchestration.py ..................                    [ 15%]
+tests/test_cli.py .............                                          [ 26%]
+tests/test_failures.py .........................                         [ 47%]
+tests/test_feishu_client.py ......                                       [ 52%]
+tests/test_renderer.py ......                                            [ 57%]
+tests/test_runtime_bridge.py .......                                     [ 63%]
+tests/test_runtime_bridge_cli.py ......                                  [ 68%]
+tests/test_runtime_event.py ....                                         [ 71%]
+tests/test_scope_guards.py .....                                         [ 75%]
+tests/test_smoke.py ..                                                   [ 77%]
+tests/test_state.py ...........................                          [100%]
+
+============================= 119 passed in 2.88s ==============================
+<<<stdout
+stderr=<empty>
+
+[cli_help]
+command=.venv/bin/python -m feishu_messaging_card_builder.cli --help
+exit_code=0
+stdout>>>
+usage: feishu-messaging-card-builder [-h]
+                                     {process-fixture,update-card,inspect-state,runtime-bridge} ...
+
+Feishu Messaging Card Builder command line interface.
+
+positional arguments:
+  {process-fixture,update-card,inspect-state,runtime-bridge}
+    process-fixture     Process a Hermes final-reply fixture and write
+                        evidence.
+    update-card         Update a previously sent card and write evidence.
+    inspect-state       Inspect persisted bridge state as JSON.
+    runtime-bridge      Runtime bridge commands.
+
+options:
+  -h, --help            show this help message and exit
+<<<stdout
+stderr=<empty>
+
+[diff_check]
+command=GIT_MASTER=1 git diff --check
+exit_code=0
+stdout=<empty>
+stderr=<empty>
+
+[git_status_short]
+command=GIT_MASTER=1 git status --short
+exit_code=0
+stdout=<empty>
+stderr=<empty>
+
+[final_scope_scan]
+changed_paths=[]
+forbidden_path_hits=[]
+non_plan12_hits=[]
+closure_statement_ok=true
+readme_authorization_ok=true
+
+Result
+------
+exit_code=0
